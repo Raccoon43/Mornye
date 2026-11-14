@@ -296,6 +296,10 @@ public class AudioService extends MediaBrowserServiceCompat {
     private boolean controlsConfigured;
     private int[] compactActionIndices;
     private MediaMetadataCompat mediaMetadata;
+    // The copy last given to the media session, before any lyric line.
+    private MediaMetadataCompat sessionMetadata;
+    private String lineMediaId;
+    private String line;
     private Bitmap artBitmap;
     private String notificationChannelId;
     private RecentArtCache<Bitmap> artBitmapCache;
@@ -389,6 +393,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             listener.onDestroy();
         }
         mediaMetadata = null;
+        sessionMetadata = null;
         artBitmap = null;
         queue = Collections.emptyList();
         controls.clear();
@@ -887,11 +892,14 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (destroyed || mediaSession == null) return;
         mediaMetadata = MediaArtwork.sanitize(mediaMetadata);
         try {
-            mediaSession.setMetadata(MediaArtwork.forSession(mediaMetadata));
+            MediaMetadataCompat session = withSharedArt(MediaArtwork.forSession(mediaMetadata));
+            mediaSession.setMetadata(withLine(session));
+            sessionMetadata = session;
         } catch (IllegalArgumentException | IllegalStateException error) {
             Log.w("AudioService", "Artwork rejected by media session; publishing text metadata", error);
             mediaMetadata = MediaArtwork.withoutArtwork(mediaMetadata);
-            mediaSession.setMetadata(mediaMetadata);
+            mediaSession.setMetadata(withLine(mediaMetadata));
+            sessionMetadata = mediaMetadata;
         }
         synchronized (mediaMetadataCache) {
             mediaMetadataCache.setCurrent(mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID), mediaMetadata);
@@ -906,6 +914,46 @@ public class AudioService extends MediaBrowserServiceCompat {
             mediaSession.setPlaybackState(new PlaybackStateCompat.Builder(state).setExtras(extras).build());
         }
         updateNotification();
+    }
+
+    /**
+     * Shows [line] (a synced lyric) as the session's subtitle while [mediaId]
+     * is the published item; null restores the item's own. Main thread only.
+     * The notification and the metadata cache keep the item's metadata.
+     */
+    void setSessionLine(String mediaId, String line) {
+        MediaMetadataCompat before = sessionMetadata == null ? null : withLine(sessionMetadata);
+        lineMediaId = mediaId;
+        this.line = line;
+        if (destroyed || mediaSession == null || sessionMetadata == null) return;
+        MediaMetadataCompat after = withLine(sessionMetadata);
+        // withLine returns its argument unchanged when no line shows.
+        if (before != sessionMetadata || after != sessionMetadata) mediaSession.setMetadata(after);
+    }
+
+    private MediaMetadataCompat withLine(MediaMetadataCompat metadata) {
+        String id = metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
+        if (line == null || line.isEmpty() || id == null || !id.equals(lineMediaId)) return metadata;
+        // getDescription() reads the DISPLAY_ keys only when DISPLAY_TITLE is set.
+        String title = metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE);
+        if (title == null || title.isEmpty()) title = metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE);
+        return new MediaMetadataCompat.Builder(metadata)
+                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
+                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, line)
+                .build();
+    }
+
+    /**
+     * Android Auto loads the session's icon URI in its own process, where an
+     * app-private file:// cover shows nothing; share it as the resolver's URI.
+     */
+    private static MediaMetadataCompat withSharedArt(MediaMetadataCompat metadata) {
+        String art = metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI);
+        Uri shared = art == null ? null : AudioServicePlugin.sharedArt(Uri.parse(art));
+        if (shared == null) return metadata;
+        return new MediaMetadataCompat.Builder(metadata)
+                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, shared.toString())
+                .build();
     }
 
     private MediaMetadataCompat putArtToMetadata(MediaMetadataCompat mediaMetadata, Bitmap bitmap) {

@@ -22,6 +22,9 @@ class MornyeApplication : Application() {
                 "drawable/ic_notification_star_filled" -> R.drawable.ic_notification_star_filled
                 "drawable/ic_notification_shuffle" -> R.drawable.ic_notification_shuffle
                 "drawable/ic_notification_shuffle_on" -> R.drawable.ic_notification_shuffle_on
+                "drawable/ic_notification_repeat" -> R.drawable.ic_notification_repeat
+                "drawable/ic_notification_repeat_on" -> R.drawable.ic_notification_repeat_on
+                "drawable/ic_notification_repeat_one" -> R.drawable.ic_notification_repeat_one
                 "drawable/ic_widget_previous" -> R.drawable.ic_widget_previous
                 "drawable/ic_widget_next" -> R.drawable.ic_widget_next
                 "drawable/ic_widget_play" -> R.drawable.ic_widget_play

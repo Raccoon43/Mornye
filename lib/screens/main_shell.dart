@@ -915,6 +915,9 @@ class _MainShellState extends ConsumerState<MainShell>
         unfavorite: context.l10n.trackOptionRemoveFromLoved,
         shuffleOn: context.l10n.nowPlayingShuffleOn,
         shuffleOff: context.l10n.nowPlayingPlayInOrder,
+        repeatOff: context.l10n.nowPlayingRepeatOff,
+        repeatAll: context.l10n.nowPlayingRepeatAll,
+        repeatOne: context.l10n.nowPlayingRepeatOne,
       )),
     );
     ref.listen(settingsProvider, (_, settings) {

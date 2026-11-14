@@ -599,6 +599,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                         configureResult = result;
                     }
                     break;
+                case "setSessionLine": {
+                    Map<?, ?> lineArgs = (Map<?, ?>)call.arguments;
+                    if (AudioService.instance != null) {
+                        AudioService.instance.setSessionLine((String)lineArgs.get("mediaId"), (String)lineArgs.get("line"));
+                    }
+                    result.success(null);
+                    break;
+                }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -1355,19 +1363,27 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         return queue;
     }
 
-    /** A copy of a queue description with the artwork the queue art resolver maps it to. */
-    private static MediaDescriptionCompat withQueueArt(MediaDescriptionCompat description) {
+    /**
+     * The URI the queue art resolver shares {@code art} as, or null when there
+     * is no resolver, it throws, or it keeps the URI as it is.
+     */
+    static Uri sharedArt(Uri art) {
         QueueArtResolver resolver = queueArtResolver;
-        Uri art = description.getIconUri();
-        if (resolver == null || art == null) return description;
+        if (resolver == null || art == null) return null;
         Uri shared;
         try {
             shared = resolver.resolve(art);
         } catch (RuntimeException e) {
-            Log.w("AudioServicePlugin", "Queue artwork kept as it is", e);
-            return description;
+            Log.w("AudioServicePlugin", "Artwork kept as it is", e);
+            return null;
         }
-        if (shared == null || shared.equals(art)) return description;
+        return shared == null || shared.equals(art) ? null : shared;
+    }
+
+    /** A copy of a queue description with the artwork the queue art resolver maps it to. */
+    private static MediaDescriptionCompat withQueueArt(MediaDescriptionCompat description) {
+        Uri shared = sharedArt(description.getIconUri());
+        if (shared == null) return description;
         return new MediaDescriptionCompat.Builder()
                 .setMediaId(description.getMediaId())
                 .setTitle(description.getTitle())

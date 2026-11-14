@@ -1303,6 +1303,15 @@ class AudioService {
         .invokeMethod<void>('refreshNowPlayingInfo');
   }
 
+  /// Shows [line] as the Android media session's subtitle while the item
+  /// [mediaId] is current, or the item's own subtitle when [line] is null.
+  /// Only the session copy changes, which Android Auto shows; the
+  /// notification and the media item stream keep theirs. Call only on Android.
+  static Future<void> setAndroidSessionLine(String mediaId, String? line) async {
+    await const MethodChannel('com.ryanheise.audio_service.client.methods')
+        .invokeMethod<void>('setSessionLine', {'mediaId': mediaId, 'line': line});
+  }
+
   /// Stops the service.
   static Future<void> _stop() async {
     await _platform.stopService(const StopServiceRequest());

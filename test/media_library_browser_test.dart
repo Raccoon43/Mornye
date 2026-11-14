@@ -292,13 +292,16 @@ void main() {
     expect(albums.first.artist, 'Artist');
 
     final downloaded = await browser.children(albums.first.id);
-    expect(_titles(downloaded), ['Song a', 'Song b', 'Song c']);
-    final queue = (await browser.queueFor(downloaded[1].id))!;
+    expect(_titles(downloaded), ['Shuffle', 'Song a', 'Song b', 'Song c']);
+    final queue = (await browser.queueFor(downloaded[2].id))!;
     expect([for (final media in queue.items) media.id], ['a', 'b', 'c']);
     expect(queue.index, 1);
+    final shuffled = (await browser.queueFor(downloaded.first.id))!;
+    expect(shuffled.shuffle, isTrue);
+    expect([for (final media in shuffled.items) media.id], ['a', 'b', 'c']);
 
     final scanned = await browser.children(albums.last.id);
-    expect(_titles(scanned), ['Song a', 'Song b']);
+    expect(_titles(scanned), ['Shuffle', 'Song a', 'Song b']);
   });
 
   test('an artist opens its albums', () async {
@@ -319,7 +322,10 @@ void main() {
         },
       ],
     );
-    final browser = _browser(library: library);
+    final browser = _browser(
+      library: library,
+      history: _History(album: [_download('a')]),
+    );
 
     final artists = await browser.children(MediaLibraryBrowser.artistsId);
     expect(_titles(artists), ['Artist']);
@@ -328,8 +334,11 @@ void main() {
       AndroidContentStyle.gridItemHintValue,
     );
     final albums = await browser.children(artists.single.id);
-    expect(_titles(albums), ['Album']);
+    expect(_titles(albums), ['Shuffle', 'Album']);
     expect(library.albumRequests.last.albumArtist, 'Artist');
+    final shuffled = (await browser.queueFor(albums.first.id))!;
+    expect(shuffled.shuffle, isTrue);
+    expect([for (final media in shuffled.items) media.id], ['a']);
   });
 
   test(
@@ -356,13 +365,22 @@ void main() {
 
       final playlists = await browser.children(MediaLibraryBrowser.playlistsId);
       expect(_titles(playlists), ['Loved', 'Road trip']);
-      expect(_titles(await browser.children(playlists.first.id)), ['Loved']);
+      expect(_titles(await browser.children(playlists.first.id)), [
+        'Shuffle',
+        'Loved',
+      ]);
 
       final songs = await browser.children(playlists.last.id);
-      expect(_titles(songs), ['First', 'Third']);
+      expect(_titles(songs), ['Shuffle', 'First', 'Third']);
       final queue = (await browser.queueFor(songs.last.id))!;
       expect([for (final media in queue.items) media.source], [first, third]);
       expect(queue.index, 1);
+      final shuffled = (await browser.queueFor(songs.first.id))!;
+      expect(shuffled.shuffle, isTrue);
+      expect(
+        {for (final media in shuffled.items) media.source},
+        {first, third},
+      );
     },
   );
 
@@ -389,8 +407,8 @@ void main() {
     );
 
     final songs = await browser.children(MediaLibraryBrowser.lovedId);
-    expect(_titles(songs), ['Old', 'Web']);
-    expect(songs.first.artUri, isNull);
+    expect(_titles(songs), ['Shuffle', 'Old', 'Web']);
+    expect(songs[1].artUri, isNull);
     expect(songs.last.artUri.toString(), 'https://covers.example/web.jpg');
   });
 

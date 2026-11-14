@@ -17,6 +17,9 @@ final playbackNotificationProvider = Provider.autoDispose
         String unfavorite,
         String shuffleOn,
         String shuffleOff,
+        String repeatOff,
+        String repeatAll,
+        String repeatOne,
       })
     >((ref, labels) {
       final mornye = ref.watch(
@@ -48,6 +51,9 @@ final playbackNotificationProvider = Provider.autoDispose
             unfavoriteLabel: labels.unfavorite,
             shuffleOnLabel: labels.shuffleOn,
             shuffleOffLabel: labels.shuffleOff,
+            repeatOffLabel: labels.repeatOff,
+            repeatAllLabel: labels.repeatAll,
+            repeatOneLabel: labels.repeatOne,
           ),
           toggleFavorite: (selected) async {
             final collections = ref.read(libraryCollectionsProvider.notifier);

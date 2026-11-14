@@ -355,6 +355,9 @@ Future<void> _startBackgroundPlayback() async {
         unfavoriteLabel: l10n.trackOptionRemoveFromLoved,
         shuffleOnLabel: l10n.nowPlayingShuffleOn,
         shuffleOffLabel: l10n.nowPlayingPlayInOrder,
+        repeatOffLabel: l10n.nowPlayingRepeatOff,
+        repeatAllLabel: l10n.nowPlayingRepeatAll,
+        repeatOneLabel: l10n.nowPlayingRepeatOne,
       ),
       favorites: BackgroundFavorites(
         library: dependencies.libraryDatabase,

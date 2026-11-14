@@ -169,6 +169,22 @@ class CoverProviderFilesTest {
     }
 
     @Test
+    fun locatesCoverPathsNamedThroughALinkToTheAppFolder() {
+        // Like /data/data/<package> linking to /data/user/0/<package>.
+        val linked = File(app.parentFile, "${app.name}-link")
+        Files.createSymbolicLink(linked.toPath(), app.toPath())
+        try {
+            assertEquals(
+                "library_covers" to "cover_0123.jpg",
+                CoverProviderFiles.locate(folders, "$linked/files/library_covers/cover_0123.jpg"),
+            )
+            assertNull(CoverProviderFiles.locate(folders, "$linked/files/shared_prefs/settings.jpg"))
+        } finally {
+            linked.delete()
+        }
+    }
+
+    @Test
     fun recognizesTheImageFormatsTheCoverStoreKeeps() {
         fun type(vararg bytes: Int) = CoverProviderFiles.imageType(ByteArray(bytes.size) { bytes[it].toByte() })
         fun type(text: String) = CoverProviderFiles.imageType(text.toByteArray(Charsets.ISO_8859_1))

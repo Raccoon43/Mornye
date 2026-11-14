@@ -79,11 +79,13 @@ from the upstream package are not vendored.
   process, so an app-private `file://` cover shows nothing there; the app
   maps covers in its cover folders to its read-only cover provider's
   `content://` URI (the same URI the item's browse entry has). `raw2queue`
-  applies it to the `QueueItem` description only: the item's
-  `MediaMetadataCompat`, the metadata cache, the playing item, the
-  notification and the lock screen keep the original artwork. A null
-  answer, a resolver that throws, or no resolver keeps the description as
-  it was.
+  applies it to the `QueueItem` description, and `publishMetadata` applies
+  it (`AudioServicePlugin.sharedArt`) to the `DISPLAY_ICON_URI` of the
+  metadata copy given to the media session: Android Auto's media card
+  loads that URI too, and showed no cover. The session copy keeps its
+  bitmaps; the metadata cache, the notification and the lock screen keep
+  the original URI. A null answer, a resolver that throws, or no resolver
+  keeps the URI as it was.
 - Android: bound the decoded notification art. Upstream keeps every decoded
   cover in an `LruCache` of one eighth of the Java heap (16 to 64 MB) that
   only `onDestroy` empties. `AudioService` now keeps the current cover and
@@ -155,6 +157,15 @@ from the upstream package are not vendored.
   views see the window (owner-approved). The app's queue-platform test covers
   mapping, mutations, pending sends, codec size and platform scope;
   `QueueItemIndexTest.java` covers native and legacy ID handling.
+- Android: `AudioService.setAndroidSessionLine(mediaId, line)` (client
+  channel method `setSessionLine`) puts a lyric line in the media session's
+  `METADATA_KEY_DISPLAY_SUBTITLE`, so Android Auto shows it under the title.
+  It also sets `METADATA_KEY_DISPLAY_TITLE` to the title, because
+  `getDescription()` ignores the display keys without it.
+  Only the copy given to the session changes. The notification, the
+  metadata cache and the Dart `mediaItem` keep the artist. The line shows
+  only while `mediaId` is the session's current item, so a track change
+  never shows the previous song's line. Null or empty clears it.
 
 Android 13+ still chooses the positions and built-in transport icons in System
 UI. We preserve real play/pause/previous/next semantics for headsets, lock screen

@@ -406,10 +406,11 @@ void main() {
       MediaAction.play,
       MediaAction.skipToNext,
       MediaAction.custom,
+      MediaAction.custom,
     ]);
     expect(state.controls.first.androidIcon, contains('star_filled'));
     expect(
-      state.controls.last.customAction?.name,
+      state.controls[4].customAction?.name,
       PlaybackNotification.shuffleAction,
     );
     expect(state.androidCompactActionIndices, [1, 2, 3]);
@@ -437,7 +438,7 @@ void main() {
       MediaControl.skipToNext,
     ]);
     expect(
-      material.controls.last.customAction?.name,
+      material.controls[4].customAction?.name,
       PlaybackNotification.shuffleAction,
     );
     expect(material.androidCompactActionIndices, [1, 2, 3]);
@@ -484,10 +485,10 @@ void main() {
       });
       expect(handler.mediaItem.value?.id, 'two');
       expect(
-        handler.playbackState.value.controls.last.androidIcon,
+        handler.playbackState.value.controls[4].androidIcon,
         endsWith('shuffle_on'),
       );
-      expect(handler.playbackState.value.controls.last.label, 'Shuffle on');
+      expect(handler.playbackState.value.controls[4].label, 'Shuffle on');
 
       await handler.customAction(PlaybackNotification.shuffleAction);
       expect(
@@ -501,14 +502,34 @@ void main() {
       ]);
       expect(handler.mediaItem.value?.id, 'two');
       expect(
-        handler.playbackState.value.controls.last.androidIcon,
+        handler.playbackState.value.controls[4].androidIcon,
         endsWith('shuffle'),
       );
-      expect(handler.playbackState.value.controls.last.label, 'Shuffle off');
+      expect(handler.playbackState.value.controls[4].label, 'Shuffle off');
       expect(handler.playbackState.value.playing, isTrue);
       expect(native.resumedSources, resumed);
     },
   );
+
+  test('the repeat button steps through all, one and off', () async {
+    configurePlaybackNotification(
+      presentation: const PlaybackNotification(),
+      toggleFavorite: (_) async => false,
+    );
+    await handler.setQueueAndPlay(_tracks, initialIndex: 1);
+
+    for (final (mode, icon, label) in [
+      (AudioServiceRepeatMode.all, 'repeat_on', 'Repeat all'),
+      (AudioServiceRepeatMode.one, 'repeat_one', 'Repeat one'),
+      (AudioServiceRepeatMode.none, 'repeat', 'Repeat off'),
+    ]) {
+      await handler.customAction(PlaybackNotification.repeatAction);
+      final state = handler.playbackState.value;
+      expect(state.repeatMode, mode);
+      expect(state.controls.last.androidIcon, endsWith(icon));
+      expect(state.controls.last.label, label);
+    }
+  });
 
   test(
     'shuffle plays the published queue and off restores the original order',

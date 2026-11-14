@@ -899,6 +899,7 @@ class MusicPlayerHandler extends BaseAudioHandler
           playing: playing,
           item: mediaItem.value,
           shuffle: _shuffle,
+          repeat: _repeatMode,
         ),
         systemActions: const {
           MediaAction.seek,
@@ -938,6 +939,7 @@ class MusicPlayerHandler extends BaseAudioHandler
           playing: state.playing,
           item: mediaItem.value,
           shuffle: _shuffle,
+          repeat: _repeatMode,
         ),
         androidCompactActionIndices: const [1, 2, 3],
       ),
@@ -983,6 +985,18 @@ class MusicPlayerHandler extends BaseAudioHandler
         _log.w('Notification shuffle failed: $error');
       } finally {
         _changingNotificationShuffle = false;
+      }
+    } else if (name == PlaybackNotification.repeatAction) {
+      if (mediaItem.value == null) return;
+      try {
+        // Same order as the in-app repeat button.
+        await setRepeatMode(switch (_repeatMode) {
+          AudioServiceRepeatMode.none => AudioServiceRepeatMode.all,
+          AudioServiceRepeatMode.all => AudioServiceRepeatMode.one,
+          _ => AudioServiceRepeatMode.none,
+        });
+      } catch (error) {
+        _log.w('Notification repeat failed: $error');
       }
     } else {
       return super.customAction(name, extras);

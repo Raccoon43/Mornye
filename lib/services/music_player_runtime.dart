@@ -43,6 +43,7 @@ import 'package:mornye/services/playback_output_volume.dart';
 import 'package:mornye/services/player_widget_service.dart';
 import 'package:mornye/services/remote_media_session.dart';
 import 'package:mornye/services/remote_playback.dart';
+import 'package:mornye/services/session_lyrics_service.dart';
 import 'package:mornye/services/song_analysis.dart';
 import 'package:mornye/services/source_deletion_events.dart';
 import 'package:mornye/services/source_metadata_events.dart';
@@ -595,6 +596,9 @@ class MusicPlayerRuntime {
       _handlers.add(handler);
       if (dependencies.isAndroid || dependencies.isIOS) {
         PlayerWidgetService.instance.bind(handler);
+      }
+      if (dependencies.isAndroid) {
+        SessionLyricsService.instance.bind(handler);
       }
       // Desktop presence goes through the Rust IPC client instead of the SDK.
       if (dependencies.isAndroid || dependencies.isIOS || isDesktopPlatform) {

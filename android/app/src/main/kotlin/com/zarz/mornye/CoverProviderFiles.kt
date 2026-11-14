@@ -62,8 +62,20 @@ internal object CoverProviderFiles {
         if (!file.isAbsolute) return null
         val normal = file.normalize()
         val parent = normal.parentFile ?: return null
-        val (name, folder) = folders.entries.firstOrNull { it.value.directory.normalize() == parent } ?: return null
+        val (name, folder) = folders.entries.firstOrNull { it.value.directory.normalize() == parent }
+            // Dart names covers under /data/data/<package>, a link to the
+            // /data/user/0/<package> that filesDir and cacheDir name.
+            ?: folders.entries.firstOrNull { sameDirectory(it.value.directory, parent) }
+            ?: return null
         return if (folder.names(normal.name)) name to normal.name else null
+    }
+
+    private fun sameDirectory(a: File, b: File) = try {
+        a.canonicalFile == b.canonicalFile
+    } catch (_: IOException) {
+        false
+    } catch (_: SecurityException) {
+        false
     }
 
     /** The MIME type of the image whose first 12 bytes are [head], or null. */

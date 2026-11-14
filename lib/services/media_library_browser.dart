@@ -184,12 +184,21 @@ class MediaLibraryBrowser {
       'albums' => await _albumItems(),
       'artists' => await _artistItems(),
       'playlists' => await _playlistItems(),
-      'album' => _trackItems(parentId, await _albumSongs(query)),
-      'artist' => await _albumItems(artist: query['name'] ?? ''),
-      'loved' => _trackItems(parentId, await _lovedSongs()),
-      'playlist' => _trackItems(
+      'album' => _withShuffle(
         parentId,
-        await _playlistSongs(query['id'] ?? ''),
+        _trackItems(parentId, await _albumSongs(query)),
+      ),
+      'artist' => _withShuffle(
+        parentId,
+        await _albumItems(artist: query['name'] ?? ''),
+      ),
+      'loved' => _withShuffle(
+        parentId,
+        _trackItems(parentId, await _lovedSongs()),
+      ),
+      'playlist' => _withShuffle(
+        parentId,
+        _trackItems(parentId, await _playlistSongs(query['id'] ?? '')),
       ),
       _ => const <MediaItem>[],
     };
@@ -223,8 +232,16 @@ class MediaLibraryBrowser {
     ];
   }
 
-  MediaItem _shuffleItem() =>
-      MediaItem(id: shuffleId, title: strings().nowPlayingShuffleLibrary);
+  /// Shuffles the whole Library, or with [parentId] the songs of that list.
+  MediaItem _shuffleItem([String? parentId]) => parentId == null
+      ? MediaItem(id: shuffleId, title: strings().nowPlayingShuffleLibrary)
+      : MediaItem(
+          id: _id('shuffle', {'parent': parentId}),
+          title: strings().actionShuffle,
+        );
+
+  List<MediaItem> _withShuffle(String parentId, List<MediaItem> items) =>
+      items.isEmpty ? items : [_shuffleItem(parentId), ...items];
 
   /// Finds the cover provider and reads which network covers are stored,
   /// so the items built next can show the app's cover files. Only a found
@@ -569,26 +586,36 @@ class MediaLibraryBrowser {
   }
 
   /// The queue a browser item plays: the songs of the folder a song was
-  /// chosen from, starting at that song, or the whole Library shuffled.
+  /// chosen from, starting at that song, or a folder or the whole Library
+  /// shuffled.
   Future<BrowserQueue?> queueFor(String mediaId) async {
     final uri = _parse(mediaId);
     if (uri == null) return null;
-    if (uri.path == 'shuffle') return _shuffled(await librarySongs());
-    if (uri.path != 'track') return null;
     final parent = _parse(uri.queryParameters['parent'] ?? '');
+    if (uri.path == 'shuffle') {
+      return _shuffled(
+        parent == null ? await librarySongs() : await _folderSongs(parent),
+      );
+    }
+    if (uri.path != 'track') return null;
     final path = uri.queryParameters['path'] ?? '';
     if (parent == null || path.isEmpty) return null;
-    final query = parent.queryParameters;
-    final songs = switch (parent.path) {
+    final songs = await _folderSongs(parent);
+    final index = songs.indexWhere((media) => media.source == path);
+    return index < 0 ? null : (items: songs, index: index, shuffle: false);
+  }
+
+  Future<List<PlayableMedia>> _folderSongs(Uri folder) async {
+    final query = folder.queryParameters;
+    return switch (folder.path) {
       'songs' => await librarySongs(),
       'album' => await _albumSongs(query),
+      'artist' => await _artistSongs(query['name'] ?? ''),
       'loved' => await _lovedSongs(),
       'playlist' => await _playlistSongs(query['id'] ?? ''),
       'search' => await _searchSongs(query['q'] ?? ''),
       _ => const <PlayableMedia>[],
     };
-    final index = songs.indexWhere((media) => media.source == path);
-    return index < 0 ? null : (items: songs, index: index, shuffle: false);
   }
 
   static BrowserQueue? _shuffled(List<PlayableMedia> songs) => songs.isEmpty
