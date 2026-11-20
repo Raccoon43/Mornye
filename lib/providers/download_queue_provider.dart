@@ -16,6 +16,7 @@ import 'package:mornye/models/track.dart';
 import 'package:mornye/models/unified_library_item.dart';
 import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/providers/download_lyrics_translation_provider.dart';
+import 'package:mornye/providers/playback_provider.dart';
 import 'package:mornye/providers/extension_provider.dart';
 import 'package:mornye/providers/player_motion_artwork_provider.dart';
 import 'package:mornye/providers/download_verification_retry_guard.dart';
@@ -757,6 +758,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     String? qualityOverride,
     String? playlistName,
     int? playlistPosition,
+    bool streamOnly = false,
   }) {
     final settings = ref.read(settingsProvider);
     updateSettings(settings);
@@ -771,11 +773,23 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       qualityOverride: qualityOverride,
       playlistName: playlistName,
       playlistPosition: playlistPosition,
-      preserveQualityVariant: settings.allowQualityVariants,
-      networkDownloadFolder: settings.networkDownloadFolder,
+      preserveQualityVariant: !streamOnly && settings.allowQualityVariants,
+      networkDownloadFolder: streamOnly ? '' : settings.networkDownloadFolder,
+      streamOnly: streamOnly,
     );
 
-    state = state.copyWith(items: [...state.items, item]);
+    // A newer play-now request replaces any that has not started yet, and
+    // jumps ahead of queued downloads.
+    state = state.copyWith(
+      items: streamOnly
+          ? [
+              item,
+              ...state.items.where(
+                (e) => !(e.streamOnly && e.status == DownloadStatus.queued),
+              ),
+            ]
+          : [...state.items, item],
+    );
     _saveQueueToStorage();
 
     if (!state.isProcessing) {

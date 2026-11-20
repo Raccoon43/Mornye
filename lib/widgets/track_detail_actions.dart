@@ -83,6 +83,27 @@ void downloadSingleTrack(
   }
 }
 
+/// Fetches [track] into the temporary stream cache with the default service
+/// and plays it when ready. Nothing is added to the library or history.
+void streamSingleTrack(BuildContext context, WidgetRef ref, Track track) {
+  final service = resolveEffectiveDownloadService(
+    ref.read(settingsProvider).defaultService,
+    ref.read(extensionProvider),
+  );
+  if (service.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.extensionsNoDownloadProvider)),
+    );
+    return;
+  }
+  ref
+      .read(downloadQueueProvider.notifier)
+      .addToQueue(track, service, streamOnly: true);
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(context.l10n.trackOptionPreparingPlay(track.name))),
+  );
+}
+
 /// Shared "download all" confirmation dialog for detail screens
 /// (album/playlist/library-folder).
 void confirmDownloadAllDialog(

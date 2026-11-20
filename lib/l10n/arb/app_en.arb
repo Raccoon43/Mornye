@@ -1279,6 +1279,17 @@
   "@trackMetadataService": {
     "description": "Metadata field - download service used"
   },
+  "trackOptionPlayNow": "Play now",
+  "@trackOptionPlayNow": {
+    "description": "Track menu action - fetch a track to a temporary cache and play it without adding it to the library"
+  },
+  "trackOptionPreparingPlay": "Getting {trackName} ready to play",
+  "@trackOptionPreparingPlay": {
+    "description": "Snackbar shown while a Play now track is fetched",
+    "placeholders": {
+      "trackName": {"type": "String"}
+    }
+  },
   "trackMetadataPlay": "Play",
   "@trackMetadataPlay": {
     "description": "Action button - play track"

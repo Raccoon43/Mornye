@@ -177,6 +177,12 @@ List<List<ContextMenuAction>> trackOptionMenuGroups(
               notify(root.l10n.snackbarFileNotFound);
             }
           },
+        )
+      else
+        ContextMenuAction(
+          icon: Icons.play_circle_outline_rounded,
+          label: l10n.trackOptionPlayNow,
+          onSelected: () => streamSingleTrack(root, ref, track),
         ),
       ContextMenuAction(
         icon: Icons.download_outlined,
@@ -338,6 +344,12 @@ class _TrackOptionsSheet extends ConsumerWidget {
                 icon: CupertinoIcons.play,
                 label: l10n.trackMetadataPlay,
                 onPressed: () => _playLocal(context, ref),
+              )
+            else
+              MornyeMenuAction(
+                icon: CupertinoIcons.play_circle,
+                label: l10n.trackOptionPlayNow,
+                onPressed: () => _playNow(context, ref),
               ),
             if (qualityVariantAction ==
                 QualityVariantMenuAction.downloadAnotherQuality)
@@ -500,13 +512,20 @@ class _TrackOptionsSheet extends ConsumerWidget {
                   title: context.l10n.trackMetadataPlay,
                   onTap: () => _playLocal(context, ref),
                 )
-              else if (qualityVariantAction ==
-                  QualityVariantMenuAction.downloadAnotherQuality)
+              else ...[
                 _OptionTile(
-                  icon: Icons.download_outlined,
-                  title: context.l10n.trackOptionDownloadQualityVariant,
-                  onTap: () => _downloadQualityVariant(context, ref),
+                  icon: Icons.play_circle_outline_rounded,
+                  title: context.l10n.trackOptionPlayNow,
+                  onTap: () => _playNow(context, ref),
                 ),
+                if (qualityVariantAction ==
+                    QualityVariantMenuAction.downloadAnotherQuality)
+                  _OptionTile(
+                    icon: Icons.download_outlined,
+                    title: context.l10n.trackOptionDownloadQualityVariant,
+                    onTap: () => _downloadQualityVariant(context, ref),
+                  ),
+              ],
               if (linkClient != null)
                 _OptionTile(
                   icon: Icons.computer,
@@ -680,6 +699,12 @@ class _TrackOptionsSheet extends ConsumerWidget {
     ).context;
     Navigator.pop(context);
     await navigateToTrackAlbum(navigationContext, track);
+  }
+
+  void _playNow(BuildContext context, WidgetRef ref) {
+    final rootContext = Navigator.of(context, rootNavigator: true).context;
+    Navigator.pop(context);
+    streamSingleTrack(rootContext, ref, track);
   }
 
   Future<void> _playLocal(BuildContext context, WidgetRef ref) async {

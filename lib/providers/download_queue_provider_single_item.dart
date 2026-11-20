@@ -80,6 +80,24 @@ extension _SingleItemDownload on DownloadQueueNotifier {
 ///
 /// The stage order is enrich -> resolve output -> resolve identifiers ->
 /// download -> decrypt/convert/embed -> publish. `n` owns shared queue state.
+Future<Directory> _streamCacheDirectory() async =>
+    Directory(p.join((await getTemporaryDirectory()).path, 'stream_cache'));
+
+/// Deletes every cached play-now file except [keep].
+@visibleForTesting
+Future<void> clearStreamCache(Directory dir, {required String keep}) async {
+  if (!await dir.exists()) return;
+  await for (final entry in dir.list()) {
+    if (entry is File && !p.equals(entry.path, keep)) {
+      try {
+        await entry.delete();
+      } catch (e) {
+        _log.w('Could not delete cached stream: $e');
+      }
+    }
+  }
+}
+
 class _DownloadRun {
   _DownloadRun(this.n, this.item);
 
@@ -347,7 +365,8 @@ class _DownloadRun {
       settings,
       quality,
     );
-    final isSafMode = !isNetworkDownload && n._isSafMode(settings);
+    final isSafMode =
+        !isNetworkDownload && !item.streamOnly && n._isSafMode(settings);
     final relativeOutputDir = isSafMode || isNetworkDownload
         ? n._buildRelativeOutputDir(
             trackToDownload,
@@ -357,7 +376,9 @@ class _DownloadRun {
           )
         : '';
     networkRelativeDir = relativeOutputDir;
-    final initialOutputDir = isNetworkDownload
+    final initialOutputDir = item.streamOnly
+        ? (await _streamCacheDirectory()).path
+        : isNetworkDownload
         ? (await NetworkDownloadStaging.instance.workDirectory(item.id)).path
         : isSafMode
         ? relativeOutputDir
@@ -692,6 +713,11 @@ class _DownloadRun {
       deleteFileOnAbort: filePath,
     )) {
       return false;
+    }
+
+    if (item.streamOnly) {
+      await _playStream();
+      return true;
     }
 
     // At most once per run: the LOSSLESS replacement is not checked again.
@@ -1573,6 +1599,25 @@ class _DownloadRun {
         'SAF download returned non-URI path without filename metadata: $filePath',
       );
     }
+  }
+
+  /// Plays a finished play-now item and drops older cached streams. The
+  /// item leaves the queue without touching history or the library.
+  Future<void> _playStream() async {
+    final path = filePath;
+    n.removeItem(item.id);
+    if (path == null) return;
+    await clearStreamCache(await _streamCacheDirectory(), keep: path);
+    await n.ref
+        .read(playbackProvider.notifier)
+        .playLocalPath(
+          path: path,
+          title: trackToDownload.name,
+          artist: trackToDownload.artistName,
+          album: trackToDownload.albumName,
+          coverUrl: trackToDownload.coverUrl ?? '',
+          explicit: trackToDownload.explicit,
+        );
   }
 
   Future<void> _persistCompletionAndNotify({

@@ -198,7 +198,10 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
   bool _canUseAndroidNativeWorker(AppSettings settings) {
     // Network publication runs in the shared queue after native tag processing.
     // Do not let the worker publish a local history row or completion early.
-    if (state.items.any((item) => item.networkDownloadFolder.isNotEmpty)) {
+    // Play-now items stay out of the library, which the worker always updates.
+    if (state.items.any(
+      (item) => item.networkDownloadFolder.isNotEmpty || item.streamOnly,
+    )) {
       return false;
     }
     if (!Platform.isAndroid || !settings.nativeDownloadWorkerEnabled) {

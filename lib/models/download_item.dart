@@ -58,6 +58,10 @@ class DownloadItem {
   final bool preserveQualityVariant;
   final String networkDownloadFolder;
 
+  /// Play-now item: downloads to the stream cache, plays, and is never
+  /// published to the library or history.
+  final bool streamOnly;
+
   const DownloadItem({
     required this.id,
     required this.track,
@@ -78,6 +82,7 @@ class DownloadItem {
     this.fromBatch = false,
     this.preserveQualityVariant = false,
     this.networkDownloadFolder = '',
+    this.streamOnly = false,
   });
 
   DownloadItem copyWith({
@@ -100,6 +105,7 @@ class DownloadItem {
     bool? fromBatch,
     bool? preserveQualityVariant,
     String? networkDownloadFolder,
+    bool? streamOnly,
   }) {
     return DownloadItem(
       id: id ?? this.id,
@@ -129,6 +135,7 @@ class DownloadItem {
           preserveQualityVariant ?? this.preserveQualityVariant,
       networkDownloadFolder:
           networkDownloadFolder ?? this.networkDownloadFolder,
+      streamOnly: streamOnly ?? this.streamOnly,
     );
   }
 
