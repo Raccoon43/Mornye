@@ -140,6 +140,26 @@ class CoverProviderFilesTest {
         )
     }
 
+    /**
+     * Android gives the app's files as `/data/user/0/<package>`, a link to
+     * `/data/data/<package>`, and scanned covers are stored under the latter.
+     */
+    @Test
+    fun locatesCoversUnderEitherPathOfALinkedFolder() {
+        val link = File(app.parentFile, "${app.name}-link")
+        Files.createSymbolicLink(link.toPath(), app.toPath())
+        try {
+            val linked = CoverProviderFiles.folders(File(link, "files"), File(link, "cache"))
+            val expected = "library_covers" to "cover_0123.jpg"
+
+            assertEquals(expected, CoverProviderFiles.locate(linked, "$app/files/library_covers/cover_0123.jpg"))
+            assertEquals(expected, CoverProviderFiles.locate(linked, "$link/files/library_covers/cover_0123.jpg"))
+            assertNull(CoverProviderFiles.locate(linked, "$app/files/playlist_covers/list.jpg"))
+        } finally {
+            link.delete()
+        }
+    }
+
     @Test
     fun locatesCoverPathsAsDartNamesThem() {
         val files = File(app, "files").path
@@ -166,22 +186,6 @@ class CoverProviderFilesTest {
         assertNull(CoverProviderFiles.locate(folders, "/storage/emulated/0/Music/cover.jpg"))
         assertNull(CoverProviderFiles.locate(folders, "library_covers/cover_0123.jpg"))
         assertNull(CoverProviderFiles.locate(folders, "/"))
-    }
-
-    @Test
-    fun locatesCoverPathsNamedThroughALinkToTheAppFolder() {
-        // Like /data/data/<package> linking to /data/user/0/<package>.
-        val linked = File(app.parentFile, "${app.name}-link")
-        Files.createSymbolicLink(linked.toPath(), app.toPath())
-        try {
-            assertEquals(
-                "library_covers" to "cover_0123.jpg",
-                CoverProviderFiles.locate(folders, "$linked/files/library_covers/cover_0123.jpg"),
-            )
-            assertNull(CoverProviderFiles.locate(folders, "$linked/files/shared_prefs/settings.jpg"))
-        } finally {
-            linked.delete()
-        }
     }
 
     @Test

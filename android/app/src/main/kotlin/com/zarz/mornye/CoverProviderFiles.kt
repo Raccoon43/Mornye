@@ -12,8 +12,24 @@ import java.io.IOException
  * opened file holds an image.
  */
 internal object CoverProviderFiles {
-    /** An allowed cover folder and the endings of its cover file names. */
     class Folder(val directory: File, private val suffixes: List<String>) {
+        /**
+         * Every path the system gives [directory]: as named, and without
+         * symbolic links. Android reaches one app's files as both
+         * `/data/user/0/<package>` and `/data/data/<package>`, and stored
+         * cover paths use either.
+         */
+        val spellings: Set<File> by lazy {
+            val resolved = try {
+                directory.canonicalFile
+            } catch (_: IOException) {
+                null
+            } catch (_: SecurityException) {
+                null
+            }
+            setOfNotNull(directory.normalize(), resolved)
+        }
+
         /**
          * Whether [name] is a cover's: not hidden or staged (`.tmp`), no
          * sidecar (`.source`), pointer (`.current`) or marker.
@@ -62,20 +78,8 @@ internal object CoverProviderFiles {
         if (!file.isAbsolute) return null
         val normal = file.normalize()
         val parent = normal.parentFile ?: return null
-        val (name, folder) = folders.entries.firstOrNull { it.value.directory.normalize() == parent }
-            // Dart names covers under /data/data/<package>, a link to the
-            // /data/user/0/<package> that filesDir and cacheDir name.
-            ?: folders.entries.firstOrNull { sameDirectory(it.value.directory, parent) }
-            ?: return null
+        val (name, folder) = folders.entries.firstOrNull { parent in it.value.spellings } ?: return null
         return if (folder.names(normal.name)) name to normal.name else null
-    }
-
-    private fun sameDirectory(a: File, b: File) = try {
-        a.canonicalFile == b.canonicalFile
-    } catch (_: IOException) {
-        false
-    } catch (_: SecurityException) {
-        false
     }
 
     /** The MIME type of the image whose first 12 bytes are [head], or null. */
