@@ -470,6 +470,10 @@ class AppSettings {
   /// Translate lyrics without a translation as they open.
   final bool lyricsAutoTranslate;
 
+  /// Transcribe a song's sung words with the AI provider when no lyrics are
+  /// found for it.
+  final bool lyricsAutoTranscribe;
+
   /// Ask the translation for a romanization of the lines written outside
   /// the Latin alphabet that offline romanization cannot give, while
   /// [lyricsRomanize] is on.
@@ -677,6 +681,7 @@ class AppSettings {
     this.lyricsTranslationSecondLanguage = '',
     this.lyricsAiInstruction = '',
     this.lyricsAutoTranslate = false,
+    this.lyricsAutoTranscribe = false,
     this.lyricsAiRomanize = true,
     this.lyricsRomanize = true,
     this.lyricsRomanizedMainLine = false,
@@ -869,6 +874,7 @@ class AppSettings {
     String? lyricsTranslationSecondLanguage,
     String? lyricsAiInstruction,
     bool? lyricsAutoTranslate,
+    bool? lyricsAutoTranscribe,
     bool? lyricsAiRomanize,
     bool? lyricsRomanize,
     bool? lyricsRomanizedMainLine,
@@ -1088,6 +1094,7 @@ class AppSettings {
           this.lyricsTranslationSecondLanguage,
       lyricsAiInstruction: lyricsAiInstruction ?? this.lyricsAiInstruction,
       lyricsAutoTranslate: lyricsAutoTranslate ?? this.lyricsAutoTranslate,
+      lyricsAutoTranscribe: lyricsAutoTranscribe ?? this.lyricsAutoTranscribe,
       lyricsAiRomanize: lyricsAiRomanize ?? this.lyricsAiRomanize,
       lyricsRomanize: lyricsRomanize ?? this.lyricsRomanize,
       lyricsRomanizedMainLine:

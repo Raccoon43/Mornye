@@ -7,6 +7,7 @@ import 'package:mornye/models/settings.dart';
 import 'package:mornye/providers/lyrics_translation_provider.dart';
 import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/services/lyrics_ai_client.dart';
+import 'package:mornye/services/lyrics_transcription.dart';
 import 'package:mornye/services/lyrics_translation_languages.dart';
 import 'package:mornye/theme/mornye_theme.dart';
 import 'package:mornye/utils/nav_bar_inset.dart';
@@ -198,6 +199,21 @@ class _LyricsAiTranslationPageState
                 subtitle: l10n.lyricsAiAutoTranslateSubtitle,
                 value: settings.lyricsAutoTranslate,
                 onChanged: notifier.setLyricsAutoTranslate,
+              ),
+              SettingsSwitchItem(
+                icon: Icons.hearing_outlined,
+                title: l10n.lyricsAiAutoTranscribe,
+                subtitle: l10n.lyricsAiAutoTranscribeSubtitle,
+                // Only OpenAI, Gemini and OpenAI-compatible servers take audio.
+                value:
+                    settings.lyricsAutoTranscribe &&
+                    lyricsTranscriptionSupported(
+                      LyricsAiProvider.fromId(settings.lyricsAiProvider),
+                    ),
+                enabled: lyricsTranscriptionSupported(
+                  LyricsAiProvider.fromId(settings.lyricsAiProvider),
+                ),
+                onChanged: notifier.setLyricsAutoTranscribe,
               ),
               SettingsSwitchItem(
                 icon: Icons.record_voice_over_outlined,

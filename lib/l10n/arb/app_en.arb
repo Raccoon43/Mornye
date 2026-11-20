@@ -7883,6 +7883,10 @@
   "@nowPlayingWrittenBy": {"placeholders": {"writers": {"type": "String"}}},
   "nowPlayingLyricsProvider": "Lyrics: {provider}",
   "@nowPlayingLyricsProvider": {"placeholders": {"provider": {"type": "String"}}},
+  "nowPlayingLyricsTranscribed": "AI transcription, may contain mistakes",
+  "@nowPlayingLyricsTranscribed": {
+    "description": "Credit line under lyrics the AI transcribed from the song's audio"
+  },
   "concertGetTickets": "Get Tickets",
   "concertSetList": "Concert Set List",
   "concertSetListButton": "Set List",
@@ -8302,6 +8306,14 @@
   "lyricsAiAutoTranslateSubtitle": "Translates synced lyrics that have no translation when you open them, using your provider's quota",
   "@lyricsAiAutoTranslateSubtitle": {
     "description": "Subtitle of the automatic AI translation switch"
+  },
+  "lyricsAiAutoTranscribe": "Transcribe Missing Lyrics",
+  "@lyricsAiAutoTranscribe": {
+    "description": "Title of the switch that transcribes songs without lyrics with AI"
+  },
+  "lyricsAiAutoTranscribeSubtitle": "When no lyrics are found, sends the song's audio to your provider to write them down. Works with OpenAI, Gemini and compatible servers",
+  "@lyricsAiAutoTranscribeSubtitle": {
+    "description": "Subtitle of the switch that transcribes songs without lyrics with AI"
   },
   "lyricsAiMode": "Translation Mode",
   "@lyricsAiMode": {

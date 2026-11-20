@@ -790,4 +790,68 @@ void main() {
       expect(controller.lyrics.isEmpty, isTrue);
     });
   });
+
+  group('lyrics transcription', () {
+    PlayerMetadataController controllerFor() {
+      final controller = PlayerMetadataController(
+        readMetadata: (_) async => const {},
+        parseLyrics: (raw) async => LyricsParser.parse(raw),
+      );
+      addTearDown(controller.dispose);
+      return controller;
+    }
+
+    test('shows a transcript once for a song without lyrics', () async {
+      final asked = <String>[];
+      final controller = controllerFor();
+      await controller.load(_item('a'));
+      final run = controller.transcribeLyrics((source, path) async {
+        asked.add(source);
+        return '[00:01.00]Heard';
+      });
+      expect(controller.transcribing, isTrue);
+      await run;
+      await controller.transcribeLyrics((_, _) async => '[00:01.00]Again');
+      expect(asked, ['/music/a.flac']);
+      expect(controller.transcribing, isFalse);
+      expect(controller.transcribed, isTrue);
+      expect(controller.lyrics.lines.single.text, 'Heard');
+    });
+
+    test('an empty or failed transcript keeps no lyrics', () async {
+      final controller = controllerFor();
+      await controller.load(_item('a'));
+      await controller.transcribeLyrics((_, _) async => '');
+      expect(controller.lyrics.isEmpty, isTrue);
+      expect(controller.transcribed, isFalse);
+      await controller.load(_item('b'));
+      await controller.transcribeLyrics((_, _) async => throw StateError('x'));
+      expect(controller.lyrics.isEmpty, isTrue);
+      expect(controller.transcribing, isFalse);
+    });
+
+    test('a late transcript cannot replace the next track', () async {
+      final result = Completer<String>();
+      final controller = controllerFor();
+      await controller.load(_item('a'));
+      final run = controller.transcribeLyrics((_, _) => result.future);
+      await controller.load(_item('b'));
+      expect(controller.transcribing, isFalse);
+      result.complete('[00:01.00]Old track');
+      await run;
+      expect(controller.lyrics.isEmpty, isTrue);
+      expect(controller.transcribed, isFalse);
+    });
+
+    test('a network song is not transcribed', () async {
+      var asked = false;
+      final controller = controllerFor();
+      await controller.load(_item('a', source: 'https://host/a.mp3'));
+      await controller.transcribeLyrics((_, _) async {
+        asked = true;
+        return '';
+      });
+      expect(asked, isFalse);
+    });
+  });
 }

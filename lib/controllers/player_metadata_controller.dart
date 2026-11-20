@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mornye/services/lyrics_sidecar.dart';
+import 'package:mornye/services/lyrics_transcription.dart';
 import 'package:mornye/services/lyrics_translation.dart';
 import 'package:mornye/services/platform_bridge.dart';
 import 'package:mornye/services/playback_metadata.dart';
@@ -142,6 +143,9 @@ class PlayerMetadataController extends ChangeNotifier {
   bool _searchingOnline = false;
   bool _onlineSearchMissed = false;
   bool _onlineLyricsSaveFailed = false;
+  bool _transcribing = false;
+  bool _transcribed = false;
+  bool _transcribeTried = false;
   (String, String, String?)? _requestKey;
   String? _loadedPath;
   Map<String, dynamic> _fallback = const {};
@@ -173,6 +177,12 @@ class PlayerMetadataController extends ChangeNotifier {
 
   bool get onlineSearchMissed => _onlineSearchMissed;
   bool get onlineLyricsSaveFailed => _onlineLyricsSaveFailed;
+
+  /// The AI is writing down the words of a song without lyrics.
+  bool get transcribing => _transcribing;
+
+  /// The lyrics shown were transcribed by the AI, not found.
+  bool get transcribed => _transcribed;
 
   bool get canSearchOnline =>
       (_item?.title.trim().isNotEmpty ?? false) &&
@@ -228,6 +238,47 @@ class PlayerMetadataController extends ChangeNotifier {
       _savingLyricsSources.remove(source);
     }
     if (!_disposed && generation == _generation) notifyListeners();
+  }
+
+  /// Shows the words [transcribe] hears in a local song without lyrics,
+  /// once per loaded song. The transcript is not embedded in the file.
+  Future<void> transcribeLyrics(LyricsTranscriber transcribe) async {
+    final source = this.source;
+    final path = filePath;
+    if (_disposed ||
+        _loading ||
+        _transcribing ||
+        _transcribeTried ||
+        _searchingOnline ||
+        !_lyrics.isEmpty ||
+        source == null ||
+        path == null ||
+        path.startsWith('network://') ||
+        path.startsWith('http://') ||
+        path.startsWith('https://')) {
+      return;
+    }
+    final generation = _generation;
+    _transcribeTried = true;
+    _transcribing = true;
+    notifyListeners();
+    var parsed = ParsedLyrics.empty;
+    var raw = '';
+    try {
+      raw = await transcribe(source, path);
+      if (_disposed || generation != _generation) return;
+      if (raw.trim().isNotEmpty) parsed = await _parseLyrics(raw);
+    } catch (error) {
+      _log.w('Could not transcribe lyrics: $error');
+    }
+    if (_disposed || generation != _generation) return;
+    _transcribing = false;
+    // Lyrics found or typed meanwhile win over the transcript.
+    if (!parsed.isEmpty && _lyrics.isEmpty) {
+      _setFileLyrics(parsed, raw);
+      _transcribed = true;
+    }
+    notifyListeners();
   }
 
   PlayerLyricsEdit? beginLyricsEdit() {
@@ -289,6 +340,7 @@ class PlayerMetadataController extends ChangeNotifier {
     _setFileLyrics(parsed, raw);
     _onlineSearchMissed = false;
     _onlineLyricsSaveFailed = false;
+    _transcribed = false;
     notifyListeners();
   }
 
@@ -589,6 +641,9 @@ class PlayerMetadataController extends ChangeNotifier {
     _searchingOnline = false;
     _onlineSearchMissed = false;
     _onlineLyricsSaveFailed = false;
+    _transcribing = false;
+    _transcribed = false;
+    _transcribeTried = false;
   }
 
   String _metadataPath(String source, String? resolved) =>

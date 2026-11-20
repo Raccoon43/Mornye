@@ -6,6 +6,8 @@ import 'package:mornye/l10n/l10n.dart';
 import 'package:mornye/providers/lyrics_translation_provider.dart';
 import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/providers/song_lyrics_offset_provider.dart';
+import 'package:mornye/services/lyrics_ai_client.dart';
+import 'package:mornye/services/lyrics_transcription.dart';
 import 'package:mornye/theme/mornye_theme.dart';
 import 'package:mornye/utils/lyrics_parser.dart';
 import 'package:mornye/utils/playback_seek_preview.dart';
@@ -66,6 +68,7 @@ class PlayerLyricsSection extends ConsumerWidget {
           settings.lyricsAiWordSync,
           settings.lyricsRomanize,
           settings.lyricsRomanizedMainLine,
+          settings.lyricsAutoTranscribe,
         ),
       ),
     );
@@ -73,13 +76,51 @@ class PlayerLyricsSection extends ConsumerWidget {
     final translation = ref.read(lyricsTranslationProvider.notifier);
     return ListenableBuilder(
       listenable: metadata,
-      builder: (context, _) => LyricsOptionsActivity(
-        child: _buildLyricsSection(
-          context,
-          visibility,
-          translation.shown(metadata.lyrics),
-        ),
-      ),
+      builder: (context, _) {
+        _transcribeIfMissing(ref);
+        return LyricsOptionsActivity(
+          child: _buildLyricsSection(
+            context,
+            visibility,
+            translation.shown(metadata.lyrics),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Asks the AI provider for the words of a song that has no lyrics, when
+  /// the setting is on. The controller runs it once per song.
+  void _transcribeIfMissing(WidgetRef ref) {
+    final settings = ref.read(settingsProvider);
+    if (!settings.lyricsAutoTranscribe ||
+        metadata.loading ||
+        metadata.transcribing ||
+        !metadata.lyrics.isEmpty ||
+        !lyricsTranscriptionSupported(
+          LyricsAiProvider.fromId(settings.lyricsAiProvider),
+        )) {
+      return;
+    }
+    // Read before any await: the widget may be gone when the key arrives.
+    final keyFuture = ref.read(
+      lyricsAiKeyProvider(settings.lyricsAiProvider).future,
+    );
+    final newClient = ref.read(lyricsAiHttpClientProvider);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => metadata.transcribeLyrics((source, path) async {
+        final key = await keyFuture;
+        if (!lyricsAiReady(settings, key)) return '';
+        final client = newClient();
+        try {
+          return await LyricsTranscriptionClient(
+            lyricsAiConfigFor(settings, apiKey: key),
+            client: client,
+          ).transcribe(source, path);
+        } finally {
+          client.close();
+        }
+      }),
     );
   }
 
@@ -90,7 +131,7 @@ class PlayerLyricsSection extends ConsumerWidget {
   ) {
     // Center in the part the player's controls leave visible. Only these
     // states depend on it, so a lyric list does not rebuild as they fade.
-    if (metadata.loading || metadata.searchingOnline) {
+    if (metadata.loading || metadata.searchingOnline || metadata.transcribing) {
       return Builder(
         builder: (context) => Padding(
           padding: EdgeInsets.only(bottom: LyricsCoveredBottom.of(context)),
@@ -187,7 +228,7 @@ class PlayerLyricsSection extends ConsumerWidget {
           SyncedLyricsView(
             lyrics: lyrics,
             seekPreview: seekPreview,
-            credits: _lyricsCredits(),
+            credits: _lyricsCredits(context),
             colorScheme: colorScheme,
             isActive: isActive,
             animateWords: animateWords,
@@ -222,7 +263,7 @@ class PlayerLyricsSection extends ConsumerWidget {
               child: _plainLyrics(context, visibility, lyrics),
             ),
           ),
-          ?_lyricsCredits(),
+          ?_lyricsCredits(context),
         ],
       ),
     );
@@ -328,8 +369,14 @@ class PlayerLyricsSection extends ConsumerWidget {
     );
   }
 
-  LyricsCredits? _lyricsCredits() {
+  LyricsCredits? _lyricsCredits(BuildContext context) {
     final (:writers, :provider) = metadata.credits;
+    if (metadata.transcribed) {
+      return LyricsCredits(
+        writers: writers,
+        provider: context.l10n.nowPlayingLyricsTranscribed,
+      );
+    }
     if (writers == null && provider == null) return null;
     return LyricsCredits(writers: writers, provider: provider);
   }
