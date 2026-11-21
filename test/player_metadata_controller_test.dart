@@ -792,9 +792,11 @@ void main() {
   });
 
   group('lyrics transcription', () {
-    PlayerMetadataController controllerFor() {
+    PlayerMetadataController controllerFor([
+      Map<String, dynamic> metadata = const {},
+    ]) {
       final controller = PlayerMetadataController(
-        readMetadata: (_) async => const {},
+        readMetadata: (_) async => metadata,
         parseLyrics: (raw) async => LyricsParser.parse(raw),
       );
       addTearDown(controller.dispose);
@@ -816,6 +818,49 @@ void main() {
       expect(controller.transcribing, isFalse);
       expect(controller.transcribed, isTrue);
       expect(controller.lyrics.lines.single.text, 'Heard');
+    });
+
+    test('the user can retry a transcript that found nothing', () async {
+      final controller = controllerFor();
+      await controller.load(_item('a'));
+      expect(await controller.transcribeLyrics((_, _) async => ''), isFalse);
+      expect(
+        await controller.transcribeLyrics((_, _) async => '[00:01.00]X'),
+        isFalse,
+      );
+      expect(
+        await controller.transcribeLyrics(
+          (_, _) async => '[00:01.00]Retry',
+          force: true,
+        ),
+        isTrue,
+      );
+      expect(controller.lyrics.lines.single.text, 'Retry');
+    });
+
+    test('plain lyrics are timed by the transcript', () async {
+      final controller = controllerFor({'lyrics': 'Hello there\nBye now'});
+      await controller.load(_item('a'));
+      expect(controller.lyrics.synced, isFalse);
+      final timed = await controller.transcribeLyrics(
+        (_, _) async => '[00:04.00]hello there\n[00:09.00]bye now',
+      );
+      expect(timed, isTrue);
+      expect(controller.aiSynced, isTrue);
+      expect(controller.transcribed, isFalse);
+      expect(controller.lyrics.lines.map((l) => l.time.inSeconds), [4, 9]);
+      expect(controller.lyrics.lines.last.text, 'Bye now');
+    });
+
+    test('synced lyrics are not sent', () async {
+      var calls = 0;
+      final controller = controllerFor({'lyrics': '[00:01.00]Timed'});
+      await controller.load(_item('a'));
+      await controller.transcribeLyrics((_, _) async {
+        calls++;
+        return '[00:02.00]Timed';
+      });
+      expect(calls, 0);
     });
 
     test('an empty or failed transcript keeps no lyrics', () async {

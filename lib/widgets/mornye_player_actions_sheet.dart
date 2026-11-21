@@ -57,6 +57,7 @@ class MornyePlayerActionsSheet extends ConsumerWidget {
     this.sendToDesktop,
     this.sendToPhoneHost = false,
     this.saveToPhone = false,
+    this.saveStream = false,
   });
 
   final MediaItem mediaItem;
@@ -76,6 +77,9 @@ class MornyePlayerActionsSheet extends ConsumerWidget {
 
   /// Whether the song is the paired desktop's, which can be saved here.
   final bool saveToPhone;
+
+  /// Whether the song is a Play now stream that can be saved to the library.
+  final bool saveStream;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -158,6 +162,13 @@ class MornyePlayerActionsSheet extends ConsumerWidget {
                 'linkSave',
                 context.l10n.linkSaveToPhone,
                 CupertinoIcons.device_phone_portrait,
+              ),
+            if (saveStream)
+              _action(
+                context,
+                'saveStream',
+                context.l10n.trackOptionSaveStream,
+                CupertinoIcons.plus_square_on_square,
               ),
             if (!saveToPhone &&
                 canSaveNetworkOfflineSource(

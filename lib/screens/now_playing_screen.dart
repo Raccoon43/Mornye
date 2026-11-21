@@ -10,6 +10,7 @@ import 'package:mornye/controllers/clickable_metadata.dart';
 import 'package:mornye/controllers/player_track_navigation.dart';
 import 'package:mornye/controllers/player_metadata_controller.dart';
 import 'package:mornye/l10n/l10n.dart';
+import 'package:mornye/providers/download_queue_provider.dart';
 import 'package:mornye/providers/library_collections_provider.dart';
 import 'package:mornye/providers/lyrics_translation_provider.dart';
 import 'package:mornye/providers/music_player_provider.dart';
@@ -1427,6 +1428,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         ? null
         : linkDesktopName(linkClient);
     final saveToPhone = transfer.desktop.isNotEmpty;
+    final stream = ref.read(lastStreamProvider);
+    final saveStream = stream != null && stream.path == source;
     final action = context.isMornye
         ? await showMornyeContextMenu<String>(
             context: context,
@@ -1441,6 +1444,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
               sendToDesktop: sendToDesktop,
               sendToPhoneHost: linkClient?.server.isPhone ?? false,
               saveToPhone: saveToPhone,
+              saveStream: saveStream,
             ),
           )
         : await showAppBottomSheet<String>(
@@ -1482,6 +1486,12 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                       icon: Icons.phone_android,
                       title: sheetContext.l10n.linkSaveToPhone,
                       onTap: () => Navigator.of(sheetContext).pop('linkSave'),
+                    ),
+                  if (saveStream)
+                    SettingsItem(
+                      icon: Icons.library_add_outlined,
+                      title: sheetContext.l10n.trackOptionSaveStream,
+                      onTap: () => Navigator.of(sheetContext).pop('saveStream'),
                     ),
                   if (!saveToPhone && canSaveNetworkOfflineSource(source))
                     SettingsItem(
@@ -1569,6 +1579,22 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         break;
       case 'linkSave':
         linkSaveSongsToPhone(context, ref, transfer.desktop);
+        break;
+      case 'saveStream':
+        if (stream != null) {
+          // shortcut: downloads the track again rather than moving the cached
+          // file in; reuse it if the stream pipeline ever keeps full metadata.
+          ref
+              .read(downloadQueueProvider.notifier)
+              .addToQueue(stream.track, stream.service);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.l10n.snackbarAddedToQueue(stream.track.name),
+              ),
+            ),
+          );
+        }
         break;
       case 'networkOffline':
         await savePlayingNetworkOffline(context, ref, mediaItem);

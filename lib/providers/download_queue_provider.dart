@@ -2070,3 +2070,20 @@ final downloadQueueProvider =
 final downloadQueueLookupProvider = Provider<DownloadQueueLookup>((ref) {
   return ref.watch(downloadQueueProvider.select((s) => s.lookup));
 });
+
+/// The Play now track playing from the stream cache, so the player can offer
+/// to save it to the library.
+final lastStreamProvider =
+    NotifierProvider<
+      LastStreamNotifier,
+      ({String path, Track track, String service})?
+    >(LastStreamNotifier.new);
+
+class LastStreamNotifier
+    extends Notifier<({String path, Track track, String service})?> {
+  @override
+  ({String path, Track track, String service})? build() => null;
+
+  void played(String path, Track track, String service) =>
+      state = (path: path, track: track, service: service);
+}

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mornye/controllers/player_metadata_controller.dart';
 import 'package:mornye/l10n/l10n.dart';
+import 'package:mornye/models/settings.dart';
 import 'package:mornye/providers/lyrics_translation_provider.dart';
 import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/providers/song_lyrics_offset_provider.dart';
@@ -81,6 +82,7 @@ class PlayerLyricsSection extends ConsumerWidget {
         return LyricsOptionsActivity(
           child: _buildLyricsSection(
             context,
+            ref,
             visibility,
             translation.shown(metadata.lyrics),
           ),
@@ -89,43 +91,55 @@ class PlayerLyricsSection extends ConsumerWidget {
     );
   }
 
-  /// Asks the AI provider for the words of a song that has no lyrics, when
-  /// the setting is on. The controller runs it once per song.
+  /// Asks the AI provider for the words of a song that has no lyrics, or
+  /// for the timing of its plain lyrics, when the setting is on. The
+  /// controller runs it once per song.
   void _transcribeIfMissing(WidgetRef ref) {
     final settings = ref.read(settingsProvider);
     if (!settings.lyricsAutoTranscribe ||
         metadata.loading ||
         metadata.transcribing ||
-        !metadata.lyrics.isEmpty ||
-        !lyricsTranscriptionSupported(
-          LyricsAiProvider.fromId(settings.lyricsAiProvider),
-        )) {
+        metadata.lyrics.synced ||
+        !_transcriptionSupported(settings)) {
       return;
     }
-    // Read before any await: the widget may be gone when the key arrives.
+    final transcribe = _transcriber(ref);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => metadata.transcribeLyrics(transcribe),
+    );
+  }
+
+  static bool _transcriptionSupported(AppSettings settings) =>
+      lyricsTranscriptionSupported(
+        LyricsAiProvider.fromId(settings.lyricsAiProvider),
+      );
+
+  /// Sends a song to the lyrics AI provider. Reads its providers now: the
+  /// widget may be gone when the key arrives.
+  LyricsTranscriber _transcriber(WidgetRef ref) {
+    final settings = ref.read(settingsProvider);
     final keyFuture = ref.read(
       lyricsAiKeyProvider(settings.lyricsAiProvider).future,
     );
     final newClient = ref.read(lyricsAiHttpClientProvider);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => metadata.transcribeLyrics((source, path) async {
-        final key = await keyFuture;
-        if (!lyricsAiReady(settings, key)) return '';
-        final client = newClient();
-        try {
-          return await LyricsTranscriptionClient(
-            lyricsAiConfigFor(settings, apiKey: key),
-            client: client,
-          ).transcribe(source, path);
-        } finally {
-          client.close();
-        }
-      }),
-    );
+    return (source, path) async {
+      final key = await keyFuture;
+      if (!lyricsAiReady(settings, key)) return '';
+      final client = newClient();
+      try {
+        return await LyricsTranscriptionClient(
+          lyricsAiConfigFor(settings, apiKey: key),
+          client: client,
+        ).transcribe(source, path);
+      } finally {
+        client.close();
+      }
+    };
   }
 
   Widget _buildLyricsSection(
     BuildContext context,
+    WidgetRef ref,
     (bool, bool) visibility,
     ParsedLyrics lyrics,
   ) {
@@ -157,7 +171,7 @@ class PlayerLyricsSection extends ConsumerWidget {
                       )
                     : 0,
               ),
-              child: Center(child: _noLyrics(context)),
+              child: Center(child: _noLyrics(context, ref)),
             ),
           );
         },
@@ -166,7 +180,7 @@ class PlayerLyricsSection extends ConsumerWidget {
     return _lyricsContent(context, visibility, lyrics);
   }
 
-  Widget _noLyrics(BuildContext context) => Padding(
+  Widget _noLyrics(BuildContext context, WidgetRef ref) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 16),
     child: Column(
       mainAxisSize: MainAxisSize.min,
@@ -200,6 +214,28 @@ class PlayerLyricsSection extends ConsumerWidget {
             },
             icon: const Icon(Icons.manage_search),
             child: Text(context.l10n.nowPlayingSearchLyricsOnline),
+          ),
+        ],
+        if (metadata.canTranscribe &&
+            _transcriptionSupported(ref.read(settingsProvider))) ...[
+          const SizedBox(height: 8),
+          ExpressiveButton(
+            key: const ValueKey('lyrics-transcribe'),
+            tonal: true,
+            onPressed: () async {
+              final found = await metadata.transcribeLyrics(
+                _transcriber(ref),
+                force: true,
+              );
+              if (!found && context.mounted) {
+                showAppSnackBar(
+                  context,
+                  content: Text(context.l10n.lyricsTranscribeFailed),
+                );
+              }
+            },
+            icon: const Icon(Icons.auto_awesome),
+            child: Text(context.l10n.lyricsTranscribeAction),
           ),
         ],
         if (canEditPlayerLyrics(metadata)) ...[
@@ -375,6 +411,12 @@ class PlayerLyricsSection extends ConsumerWidget {
       return LyricsCredits(
         writers: writers,
         provider: context.l10n.nowPlayingLyricsTranscribed,
+      );
+    }
+    if (metadata.aiSynced) {
+      return LyricsCredits(
+        writers: writers,
+        provider: context.l10n.nowPlayingLyricsAiSynced,
       );
     }
     if (writers == null && provider == null) return null;

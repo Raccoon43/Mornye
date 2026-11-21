@@ -1290,6 +1290,18 @@
       "trackName": {"type": "String"}
     }
   },
+  "trackOptionSaveStream": "Save to library",
+  "@trackOptionSaveStream": {
+    "description": "Player menu action - download the Play now track that is playing into the library"
+  },
+  "lyricsTranscribeAction": "Transcribe with AI",
+  "@lyricsTranscribeAction": {
+    "description": "Button in the empty lyrics view - transcribe the song with the lyrics AI provider"
+  },
+  "lyricsTranscribeFailed": "Couldn't transcribe this song",
+  "@lyricsTranscribeFailed": {
+    "description": "Snackbar when AI transcription fails or finds no words"
+  },
   "trackMetadataPlay": "Play",
   "@trackMetadataPlay": {
     "description": "Action button - play track"
@@ -7898,6 +7910,10 @@
   "@nowPlayingLyricsTranscribed": {
     "description": "Credit line under lyrics the AI transcribed from the song's audio"
   },
+  "nowPlayingLyricsAiSynced": "Timing synced by AI, may be off",
+  "@nowPlayingLyricsAiSynced": {
+    "description": "Credit line under plain lyrics the AI timed from the song's audio"
+  },
   "concertGetTickets": "Get Tickets",
   "concertSetList": "Concert Set List",
   "concertSetListButton": "Set List",
@@ -8318,13 +8334,13 @@
   "@lyricsAiAutoTranslateSubtitle": {
     "description": "Subtitle of the automatic AI translation switch"
   },
-  "lyricsAiAutoTranscribe": "Transcribe Missing Lyrics",
+  "lyricsAiAutoTranscribe": "Transcribe and Sync Lyrics",
   "@lyricsAiAutoTranscribe": {
-    "description": "Title of the switch that transcribes songs without lyrics with AI"
+    "description": "Title of the switch that transcribes songs without lyrics, or times untimed ones, with AI"
   },
-  "lyricsAiAutoTranscribeSubtitle": "When no lyrics are found, sends the song's audio to your provider to write them down. Works with OpenAI, Gemini and compatible servers",
+  "lyricsAiAutoTranscribeSubtitle": "When lyrics are missing or untimed, sends the song's audio to your provider to write or time them. Works with OpenAI, Gemini and compatible servers",
   "@lyricsAiAutoTranscribeSubtitle": {
-    "description": "Subtitle of the switch that transcribes songs without lyrics with AI"
+    "description": "Subtitle of the switch that transcribes songs without lyrics, or times untimed ones, with AI"
   },
   "lyricsAiMode": "Translation Mode",
   "@lyricsAiMode": {

@@ -146,6 +146,7 @@ class PlayerMetadataController extends ChangeNotifier {
   bool _transcribing = false;
   bool _transcribed = false;
   bool _transcribeTried = false;
+  bool _aiSynced = false;
   (String, String, String?)? _requestKey;
   String? _loadedPath;
   Map<String, dynamic> _fallback = const {};
@@ -183,6 +184,9 @@ class PlayerMetadataController extends ChangeNotifier {
 
   /// The lyrics shown were transcribed by the AI, not found.
   bool get transcribed => _transcribed;
+
+  /// The plain lyrics shown were timed by the AI from the song's audio.
+  bool get aiSynced => _aiSynced;
 
   bool get canSearchOnline =>
       (_item?.title.trim().isNotEmpty ?? false) &&
@@ -240,25 +244,39 @@ class PlayerMetadataController extends ChangeNotifier {
     if (!_disposed && generation == _generation) notifyListeners();
   }
 
-  /// Shows the words [transcribe] hears in a local song without lyrics,
-  /// once per loaded song. The transcript is not embedded in the file.
-  Future<void> transcribeLyrics(LyricsTranscriber transcribe) async {
+  /// Whether the song is a local file [transcribeLyrics] can send.
+  bool get canTranscribe {
+    final path = filePath;
+    return source != null &&
+        path != null &&
+        !path.startsWith('network://') &&
+        !path.startsWith('http://') &&
+        !path.startsWith('https://');
+  }
+
+  /// Shows the words [transcribe] hears in a local song without lyrics, or
+  /// times its plain lyrics by them, once per loaded song unless the user
+  /// [force]s a retry. Nothing is embedded in the file. Returns whether
+  /// lyrics were found or timed.
+  Future<bool> transcribeLyrics(
+    LyricsTranscriber transcribe, {
+    bool force = false,
+  }) async {
     final source = this.source;
     final path = filePath;
     if (_disposed ||
         _loading ||
         _transcribing ||
-        _transcribeTried ||
+        (_transcribeTried && !force) ||
         _searchingOnline ||
-        !_lyrics.isEmpty ||
+        _lyrics.synced ||
+        !canTranscribe ||
         source == null ||
-        path == null ||
-        path.startsWith('network://') ||
-        path.startsWith('http://') ||
-        path.startsWith('https://')) {
-      return;
+        path == null) {
+      return false;
     }
     final generation = _generation;
+    final plain = _lyrics.isEmpty ? null : _lyrics.plainText;
     _transcribeTried = true;
     _transcribing = true;
     notifyListeners();
@@ -266,12 +284,13 @@ class PlayerMetadataController extends ChangeNotifier {
     var raw = '';
     try {
       raw = await transcribe(source, path);
-      if (_disposed || generation != _generation) return;
+      if (_disposed || generation != _generation) return false;
       if (raw.trim().isNotEmpty) parsed = await _parseLyrics(raw);
     } catch (error) {
       _log.w('Could not transcribe lyrics: $error');
     }
-    if (_disposed || generation != _generation) return;
+    if (_disposed || generation != _generation) return false;
+    if (plain != null) return _syncPlainLyrics(plain, parsed);
     _transcribing = false;
     // Lyrics found or typed meanwhile win over the transcript.
     if (!parsed.isEmpty && _lyrics.isEmpty) {
@@ -279,6 +298,23 @@ class PlayerMetadataController extends ChangeNotifier {
       _transcribed = true;
     }
     notifyListeners();
+    return !parsed.isEmpty;
+  }
+
+  Future<bool> _syncPlainLyrics(String plain, ParsedLyrics transcript) async {
+    final generation = _generation;
+    final raw = syncLyricsToTranscript(plain, transcript);
+    final timed = raw == null ? ParsedLyrics.empty : await _parseLyrics(raw);
+    if (_disposed || generation != _generation) return false;
+    _transcribing = false;
+    // Lyrics changed meanwhile win over the timed copy.
+    final ok = timed.synced && !_lyrics.synced && _lyrics.plainText == plain;
+    if (ok) {
+      _setFileLyrics(timed, raw!);
+      _aiSynced = true;
+    }
+    notifyListeners();
+    return ok;
   }
 
   PlayerLyricsEdit? beginLyricsEdit() {
@@ -341,6 +377,7 @@ class PlayerMetadataController extends ChangeNotifier {
     _onlineSearchMissed = false;
     _onlineLyricsSaveFailed = false;
     _transcribed = false;
+    _aiSynced = false;
     notifyListeners();
   }
 
@@ -643,6 +680,7 @@ class PlayerMetadataController extends ChangeNotifier {
     _onlineLyricsSaveFailed = false;
     _transcribing = false;
     _transcribed = false;
+    _aiSynced = false;
     _transcribeTried = false;
   }
 

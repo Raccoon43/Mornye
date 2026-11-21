@@ -1608,6 +1608,9 @@ class _DownloadRun {
     n.removeItem(item.id);
     if (path == null) return;
     await clearStreamCache(await _streamCacheDirectory(), keep: path);
+    n.ref
+        .read(lastStreamProvider.notifier)
+        .played(path, item.track, item.service);
     await n.ref
         .read(playbackProvider.notifier)
         .playLocalPath(

@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:mornye/models/ffmpeg_models.dart';
 import 'package:mornye/services/lyrics_ai_client.dart';
 import 'package:mornye/services/lyrics_transcription.dart';
+import 'package:mornye/utils/lyrics_parser.dart';
 
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +52,46 @@ void main() {
       ]),
       '[00:01.23]Hello\n[01:15.50]World',
     );
+  });
+
+  test('Whisper words become karaoke times the parser reads', () {
+    final lrc = transcriptionSegmentsToLrc(
+      [
+        {'start': 1.0, 'text': 'Hello there'},
+        {'start': 3.0, 'text': 'Bye'},
+        {'start': 5.0, 'text': 'No words'},
+      ],
+      words: [
+        {'word': 'Hello', 'start': 1.0, 'end': 1.4},
+        {'word': ' there', 'start': 1.5, 'end': 2.0},
+        {'word': 'Bye', 'start': 3.1, 'end': 3.6},
+      ],
+    );
+    expect(
+      lrc,
+      '[00:01.00]<00:01.00>Hello <00:01.50>there<00:02.00>\n'
+      '[00:03.00]<00:03.10>Bye<00:03.60>\n'
+      '[00:05.00]No words',
+    );
+    final parsed = LyricsParser.parse(lrc);
+    expect(parsed.wordSynced, isTrue);
+    expect(parsed.lines.first.text, 'Hello there');
+    expect(parsed.lines.first.words, hasLength(2));
+  });
+
+  test('plain lines take the times their words are heard at', () {
+    final transcript = LyricsParser.parse(
+      '[00:01.00]<00:01.00>Hello, <00:01.50>there<00:02.00>\n'
+      '[00:06.00]<00:06.00>bye <00:06.40>now<00:07.00>',
+    );
+    expect(
+      syncLyricsToTranscript(
+        'Hello there\nNot heard at all\n\nBye now',
+        transcript,
+      ),
+      '[00:01.00]Hello there\n[00:03.50]Not heard at all\n[00:06.00]Bye now',
+    );
+    expect(syncLyricsToTranscript('Other words\nEntirely', transcript), isNull);
   });
 
   test('a model answer keeps only its LRC lines', () {
