@@ -89,9 +89,53 @@ void main() {
         'Hello there\nNot heard at all\n\nBye now',
         transcript,
       ),
-      '[00:01.00]Hello there\n[00:03.50]Not heard at all\n[00:06.00]Bye now',
+      '[00:01.00]<00:01.00>Hello <00:01.50>there<00:02.00>\n'
+      '[00:03.50]Not heard at all\n'
+      '[00:06.00]<00:06.00>Bye <00:06.40>now<00:07.00>',
     );
     expect(syncLyricsToTranscript('Other words\nEntirely', transcript), isNull);
+  });
+
+  test('a chorus written once repeats where it is sung again', () {
+    // Each sung line: its words half a second apart from [start].
+    String sung(int start, String text) {
+      final words = text.split(' ');
+      String at(int i) =>
+          '00:${(start + i * 0.5).toStringAsFixed(2).padLeft(5, '0')}';
+      return '[${at(0)}]'
+          '${[for (var i = 0; i < words.length; i++) '<${at(i)}>${words[i]}'].join(' ')}'
+          '<${at(words.length)}>';
+    }
+
+    final transcript = LyricsParser.parse(
+      [
+        sung(1, 'walking down the street'),
+        sung(4, 'sing it loud tonight'),
+        sung(7, 'every voice together now'),
+        sung(10, 'back home again'),
+        sung(13, 'sing it loud tonight'),
+        sung(16, 'every voice together now'),
+      ].join('\n'),
+    );
+    final lrc = syncLyricsToTranscript(
+      'Walking down the street\nSing it loud tonight\n'
+      'Every voice together now\nBack home again',
+      transcript,
+    );
+    final parsed = LyricsParser.parse(lrc!);
+    expect(parsed.wordSynced, isTrue);
+    expect(
+      [for (final line in parsed.lines) (line.time.inSeconds, line.text)],
+      [
+        (1, 'Walking down the street'),
+        (4, 'Sing it loud tonight'),
+        (7, 'Every voice together now'),
+        (10, 'Back home again'),
+        (13, 'Sing it loud tonight'),
+        (16, 'Every voice together now'),
+      ],
+    );
+    expect(parsed.lines[4].words[1].time, const Duration(milliseconds: 13500));
   });
 
   test('a model answer keeps only its LRC lines', () {
@@ -158,6 +202,34 @@ void main() {
     );
     status = 200;
     expect(await client.transcribe('/c.flac', '/c.flac'), '');
+  });
+
+  test('a retry asks again only when the kept transcript is empty', () async {
+    var calls = 0;
+    final mock = MockClient((_) async {
+      calls++;
+      return http.Response(
+        jsonEncode({
+          'segments': [
+            if (calls > 1) {'start': 2.0, 'text': 'Sung'},
+          ],
+        }),
+        200,
+      );
+    });
+    final client = clientFor(LyricsAiProvider.openAi, mock);
+    expect(await client.transcribe('/e.flac', '/e.flac'), '');
+    expect(await client.transcribe('/e.flac', '/e.flac'), '');
+    expect(calls, 1);
+    expect(
+      await client.transcribe('/e.flac', '/e.flac', retryEmpty: true),
+      '[00:02.00]Sung',
+    );
+    expect(
+      await client.transcribe('/e.flac', '/e.flac', retryEmpty: true),
+      '[00:02.00]Sung',
+    );
+    expect(calls, 2);
   });
 
   test('providers without audio input are refused', () async {

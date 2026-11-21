@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit_config.dart';
@@ -76,7 +77,10 @@ String transcriptionSegmentsToLrc(
 }
 
 /// LRC for the [plain] lyric lines, each timed where its words are heard in
-/// [transcript]. Null when too few lines are heard to trust the timing.
+/// [transcript], word by word when the transcript has word times. Lines sung
+/// again where the text does not repeat them, like a chorus written once,
+/// repeat where they are heard. Null when too few lines are heard to trust
+/// the timing.
 String? syncLyricsToTranscript(String plain, ParsedLyrics transcript) {
   final space = RegExp(r'\s+');
   final nonWord = RegExp(r'[^\p{L}\p{N}]', unicode: true);
@@ -84,46 +88,74 @@ String? syncLyricsToTranscript(String plain, ParsedLyrics transcript) {
   final heard = [
     for (final line in transcript.lines)
       if (line.words.isNotEmpty)
-        for (final word in line.words) (word: norm(word.text), time: word.time)
+        for (final word in line.words)
+          (word: norm(word.text), time: word.time, end: word.end)
       else
         for (final word in line.text.split(space))
-          (word: norm(word), time: line.time),
+          (word: norm(word), time: line.time, end: line.end),
   ].where((w) => w.word.isNotEmpty).toList();
   final lines = [
     for (final line in plain.split('\n'))
-      if (line.trim().isNotEmpty) line.trim(),
+      if (line.trim().isNotEmpty) line.trim().split(space),
   ];
   if (heard.isEmpty || lines.isEmpty) return null;
+  final keys = [for (final line in lines) line.map(norm).toList()];
+  final counts = [
+    for (final key in keys) key.where((k) => k.isNotEmpty).length,
+  ];
+  // Words of a line that must be heard to place it.
+  int need(int i) => (counts[i] * 2 + 2) ~/ 3;
 
-  final times = List<Duration?>.filled(lines.length, null);
-  var cursor = 0;
-  for (var i = 0; i < lines.length; i++) {
-    final words = lines[i]
-        .split(space)
-        .map(norm)
-        .where((w) => w.isNotEmpty)
-        .toList();
-    // shortcut: greedy forward match of a word pair in a window; a song
-    // sung out of order or a transcript far off its words loses lines.
-    match:
-    for (var k = 0; k < words.length && k < 3; k++) {
-      final end = (cursor + 40).clamp(0, heard.length);
-      for (var at = cursor; at < end; at++) {
-        if (heard[at].word != words[k]) continue;
-        final pair =
-            k + 1 >= words.length ||
-            (at + 1 < heard.length && heard[at + 1].word == words[k + 1]);
-        if (!pair) continue;
-        times[i] = heard[at].time;
-        cursor = at + 1 + (words.length - k - 1) ~/ 2;
-        break match;
+  // The heard index of each word of line [i] when it is sung from a word
+  // heard in [from, to) with at least [enough] of its words heard.
+  List<int?>? find(int i, int from, int to, int enough) {
+    final key = keys[i];
+    if (counts[i] == 0) return null;
+    for (var k = 0; k < key.length && k < 3; k++) {
+      if (key[k].isEmpty) continue;
+      for (var at = from; at < to && at < heard.length; at++) {
+        if (heard[at].word != key[k]) continue;
+        final sung = List<int?>.filled(key.length, null)..[k] = at;
+        var found = 1;
+        var next = at + 1;
+        for (var w = k + 1; w < key.length; w++) {
+          if (key[w].isEmpty) continue;
+          // shortcut: a word may sit up to 2 misheard words on; a
+          // transcript further off loses that word's time.
+          for (var q = next; q < next + 3 && q < heard.length; q++) {
+            if (heard[q].word != key[w]) continue;
+            sung[w] = q;
+            next = q + 1;
+            found++;
+            break;
+          }
+        }
+        if (found >= enough) return sung;
       }
     }
+    return null;
   }
-  if (times.where((t) => t != null).length * 2 < lines.length) return null;
+
+  int first(List<int?> sung) => sung.firstWhere((q) => q != null)!;
+  int last(List<int?> sung) => sung.lastWhere((q) => q != null)!;
+
+  // shortcut: greedy forward match; a song sung out of order loses lines.
+  final sung = List<List<int?>?>.filled(lines.length, null);
+  var cursor = 0;
+  for (var i = 0; i < lines.length; i++) {
+    // A chorus sung again before this line may push it past the window.
+    final match =
+        find(i, cursor, cursor + 40, need(i)) ??
+        find(i, cursor, heard.length, max(3, need(i)));
+    if (match == null) continue;
+    sung[i] = match;
+    cursor = last(match) + 1;
+  }
+  if (sung.where((s) => s != null).length * 2 < lines.length) return null;
 
   // Lines not heard sit evenly between their heard neighbours.
-  final out = <String>[];
+  final times = [for (final s in sung) s == null ? null : heard[first(s)].time];
+  final entries = <({Duration time, int line, List<int?>? sung})>[];
   var prevIndex = -1;
   var prev = Duration.zero;
   for (var i = 0; i < lines.length; i++) {
@@ -139,9 +171,87 @@ String? syncLyricsToTranscript(String plain, ParsedLyrics transcript) {
     }
     if (time < prev) time = prev;
     if (times[i] != null) prev = time;
-    out.add('[${_lrcTime(time.inMilliseconds / 1000)}]${lines[i]}');
+    entries.add((time: time, line: i, sung: sung[i]));
   }
-  return out.join('\n');
+
+  // Heard words no line took: a run of two or more lines sung again.
+  final taken = List.filled(heard.length, false);
+  void take(List<int?> s) {
+    for (var q = first(s); q <= last(s); q++) {
+      taken[q] = true;
+    }
+  }
+
+  bool free(List<int?> s) => s.every((q) => q == null || !taken[q]);
+  for (final s in sung) {
+    if (s != null) take(s);
+  }
+  for (var at = 0; at < heard.length; at++) {
+    if (taken[at]) continue;
+    for (var j = 0; j + 1 < lines.length; j++) {
+      if (sung[j] == null) continue;
+      final run = <(int, List<int?>)>[];
+      var s = find(j, at, at + 1, need(j));
+      for (var i = j; s != null && free(s);) {
+        run.add((i, s));
+        if (++i >= lines.length) break;
+        final from = last(s) + 1;
+        s = find(i, from, from + 4, need(i));
+      }
+      if (run.length < 2) continue;
+      for (final (i, s) in run) {
+        take(s);
+        entries.add((time: heard[first(s)].time, line: i, sung: s));
+      }
+      at = last(run.last.$2);
+      break;
+    }
+  }
+  // Repeats join in heard order; equal times keep the written order.
+  final order = [for (var i = 0; i < entries.length; i++) i]
+    ..sort((a, b) {
+      final byTime = entries[a].time.compareTo(entries[b].time);
+      return byTime != 0 ? byTime : a.compareTo(b);
+    });
+
+  String stamp(Duration time) => _lrcTime(time.inMilliseconds / 1000);
+  String lrcLine(({Duration time, int line, List<int?>? sung}) entry) {
+    final words = lines[entry.line];
+    final s = entry.sung;
+    if (s == null || !transcript.wordSynced) {
+      return '[${stamp(entry.time)}]${words.join(' ')}';
+    }
+    // Words not heard sit evenly between the heard ones around them.
+    final at = <Duration>[];
+    var low = entry.time;
+    for (var w = 0; w < words.length; w++) {
+      final q = s[w];
+      var time = low;
+      if (q != null) {
+        time = heard[q].time;
+      } else {
+        final before = s.lastIndexWhere((x) => x != null, w);
+        final after = s.indexWhere((x) => x != null, w);
+        if (after >= 0) {
+          final from = before < 0 ? entry.time : heard[s[before]!].time;
+          time =
+              from +
+              (heard[s[after]!].time - from) *
+                  ((w - before) / (after - before));
+        }
+      }
+      if (time < low) time = low;
+      at.add(low = time);
+    }
+    final end = heard[last(s)].end;
+    final body = [
+      for (var w = 0; w < words.length; w++) '<${stamp(at[w])}>${words[w]}',
+    ].join(' ');
+    return '[${stamp(entry.time)}]$body'
+        '${end == null ? '' : '<${stamp(end)}>'}';
+  }
+
+  return order.map((i) => lrcLine(entries[i])).join('\n');
 }
 
 /// The LRC lines of a model's answer, without code fences or remarks.
@@ -185,12 +295,20 @@ class LyricsTranscriptionClient {
     return File('${(await _cacheRoot()).path}/transcribed_lyrics/$name.lrc');
   }
 
-  Future<String> transcribe(String source, String path) async {
+  /// [retryEmpty] sends the song again when its kept transcript is empty.
+  Future<String> transcribe(
+    String source,
+    String path, {
+    bool retryEmpty = false,
+  }) async {
     if (!lyricsTranscriptionSupported(config.provider)) {
       throw const LyricsTranscriptionException('provider takes no audio');
     }
     final cache = await _cacheFile(source);
-    if (await cache.exists()) return cache.readAsString();
+    if (await cache.exists()) {
+      final kept = await cache.readAsString();
+      if (kept.trim().isNotEmpty || !retryEmpty) return kept;
+    }
 
     // Mono 16 kHz speech-quality MP3 keeps a long song far under the
     // providers' upload limits.

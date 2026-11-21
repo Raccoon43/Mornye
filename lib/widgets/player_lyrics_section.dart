@@ -115,8 +115,9 @@ class PlayerLyricsSection extends ConsumerWidget {
       );
 
   /// Sends a song to the lyrics AI provider. Reads its providers now: the
-  /// widget may be gone when the key arrives.
-  LyricsTranscriber _transcriber(WidgetRef ref) {
+  /// widget may be gone when the key arrives. A [retry] sends a song whose
+  /// kept transcript is empty again.
+  LyricsTranscriber _transcriber(WidgetRef ref, {bool retry = false}) {
     final settings = ref.read(settingsProvider);
     final keyFuture = ref.read(
       lyricsAiKeyProvider(settings.lyricsAiProvider).future,
@@ -130,7 +131,7 @@ class PlayerLyricsSection extends ConsumerWidget {
         return await LyricsTranscriptionClient(
           lyricsAiConfigFor(settings, apiKey: key),
           client: client,
-        ).transcribe(source, path);
+        ).transcribe(source, path, retryEmpty: retry);
       } finally {
         client.close();
       }
@@ -224,7 +225,7 @@ class PlayerLyricsSection extends ConsumerWidget {
             tonal: true,
             onPressed: () async {
               final found = await metadata.transcribeLyrics(
-                _transcriber(ref),
+                _transcriber(ref, retry: true),
                 force: true,
               );
               if (!found && context.mounted) {
