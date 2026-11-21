@@ -14,6 +14,7 @@ enum LyricsAiProvider {
   openRouter('openrouter'),
   gemini('gemini'),
   anthropic('anthropic'),
+  groq('groq'),
   custom('custom');
 
   const LyricsAiProvider(this.id);
@@ -30,6 +31,7 @@ enum LyricsAiProvider {
     openRouter => 'OpenRouter',
     gemini => 'Google Gemini',
     anthropic => 'Anthropic Claude',
+    groq => 'Groq',
     custom => null,
   };
 
@@ -40,6 +42,7 @@ enum LyricsAiProvider {
     openRouter => 'google/gemini-3.5-flash-lite',
     gemini => 'gemini-3.5-flash-lite',
     anthropic => 'claude-haiku-5-5',
+    groq => 'llama-3.3-70b-versatile',
     custom => null,
   };
 
@@ -47,7 +50,7 @@ enum LyricsAiProvider {
   bool get requiresKey => this != custom;
 
   bool get openAiCompatible =>
-      this == openAi || this == openRouter || this == custom;
+      this == openAi || this == openRouter || this == groq || this == custom;
 }
 
 /// Everything a request needs. [apiKey] is read from secure storage just
@@ -71,6 +74,7 @@ class LyricsAiConfig {
   String get openAiBase => switch (provider) {
     LyricsAiProvider.openAi => 'https://api.openai.com/v1',
     LyricsAiProvider.openRouter => 'https://openrouter.ai/api/v1',
+    LyricsAiProvider.groq => 'https://api.groq.com/openai/v1',
     _ => normalizeLyricsAiBaseUrl(baseUrl),
   };
 }
@@ -346,6 +350,7 @@ LyricsAiRequest buildLyricsTranslationRequest(
       );
     case LyricsAiProvider.openAi:
     case LyricsAiProvider.openRouter:
+    case LyricsAiProvider.groq:
     case LyricsAiProvider.custom:
       final style = openAiStyle ?? openAiStyleFor(config);
       return LyricsAiRequest(
@@ -474,6 +479,7 @@ String extractLyricsAiText(LyricsAiProvider provider, Map<String, Object?> j) {
       ].join();
     case LyricsAiProvider.openAi:
     case LyricsAiProvider.openRouter:
+    case LyricsAiProvider.groq:
     case LyricsAiProvider.custom:
       final choices = j['choices'] as List? ?? const [];
       if (choices.isEmpty || choices.first is! Map) {

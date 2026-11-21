@@ -232,6 +232,26 @@ void main() {
     expect(calls, 2);
   });
 
+  test('Groq transcribes through its own Whisper model', () async {
+    final mock = MockClient((request) async {
+      expect(
+        request.url.toString(),
+        'https://api.groq.com/openai/v1/audio/transcriptions',
+      );
+      expect(request.body, contains('whisper-large-v3'));
+      return http.Response(
+        jsonEncode({
+          'segments': [
+            {'start': 2.0, 'text': 'Sung'},
+          ],
+        }),
+        200,
+      );
+    });
+    final client = clientFor(LyricsAiProvider.groq, mock);
+    expect(await client.transcribe('/f.flac', '/f.flac'), '[00:02.00]Sung');
+  });
+
   test('providers without audio input are refused', () async {
     final client = clientFor(
       LyricsAiProvider.anthropic,

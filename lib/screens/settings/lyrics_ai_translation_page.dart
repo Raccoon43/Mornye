@@ -342,6 +342,7 @@ class _LyricsAiTranslationPageState
               LyricsAiProvider.openRouter => Icons.alt_route_outlined,
               LyricsAiProvider.gemini => Icons.diamond_outlined,
               LyricsAiProvider.anthropic => Icons.psychology_outlined,
+              LyricsAiProvider.groq => Icons.speed_outlined,
               LyricsAiProvider.custom => Icons.dns_outlined,
             },
             lyricsAiProviderName(l10n, provider),

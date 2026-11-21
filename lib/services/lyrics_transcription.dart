@@ -16,10 +16,11 @@ import 'package:path_provider/path_provider.dart';
 /// words. [source] names the song for the transcript cache.
 typedef LyricsTranscriber = Future<String> Function(String source, String path);
 
-/// Providers whose API takes audio: OpenAI and OpenAI-compatible servers
-/// through Whisper, Gemini through its own model.
+/// Providers whose API takes audio: OpenAI, Groq and OpenAI-compatible
+/// servers through Whisper, Gemini through its own model.
 bool lyricsTranscriptionSupported(LyricsAiProvider provider) =>
     provider == LyricsAiProvider.openAi ||
+    provider == LyricsAiProvider.groq ||
     provider == LyricsAiProvider.custom ||
     provider == LyricsAiProvider.gemini;
 
@@ -288,7 +289,9 @@ class LyricsTranscriptionClient {
 
   // shortcut: Whisper is the one OpenAI model with segment times; a custom
   // server naming it otherwise needs a model setting.
-  static const whisperModel = 'whisper-1';
+  String get whisperModel => config.provider == LyricsAiProvider.groq
+      ? 'whisper-large-v3'
+      : 'whisper-1';
 
   Future<File> _cacheFile(String source) async {
     final name = sha1.convert(utf8.encode(source)).toString();
