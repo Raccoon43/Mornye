@@ -232,6 +232,23 @@ class LibraryAlbumArtworkNotifier extends Notifier<LibraryAlbumArtworkState> {
 
   /// Fetches again the found covers a cleared cache deleted. Runs after
   /// scans, which set found covers again only while their files exist.
+  /// After a Library scan: brings found covers back and, where animated
+  /// covers are shown, looks up the albums still without one. Albums
+  /// already checked wait [AlbumArtworkJob.recheckAfter] before another try.
+  Future<void> afterScan() async {
+    await restoreMissing();
+    if (!ref.mounted ||
+        !ref.read(settingsProvider).motionArtworkEnabled ||
+        !canLookUp()) {
+      return;
+    }
+    try {
+      await findMissing(covers: false, motion: true);
+    } catch (_) {
+      // Already logged by _run; a failed background lookup is retried next scan.
+    }
+  }
+
   Future<int> restoreMissing() =>
       _restoring ??= _restore().whenComplete(() => _restoring = null);
 

@@ -650,7 +650,7 @@ extension _LocalLibraryScan on LocalLibraryNotifier {
     );
     if (pruneCoverCache) await _pruneLibraryCoverCache();
     if (!ref.mounted) return;
-    unawaited(ref.read(libraryAlbumArtworkProvider.notifier).restoreMissing());
+    unawaited(ref.read(libraryAlbumArtworkProvider.notifier).afterScan());
 
     final message = summary();
     if (state.scanErrorCount > 0) {
