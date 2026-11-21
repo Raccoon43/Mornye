@@ -1302,6 +1302,14 @@
   "@lyricsTranscribeFailed": {
     "description": "Snackbar when AI transcription fails or finds no words"
   },
+  "lyricsResyncAction": "Resync with AI",
+  "@lyricsResyncAction": {
+    "description": "Lyrics menu action - listen to the song again and re-time the shown lyrics"
+  },
+  "lyricsResyncFailed": "Couldn't resync these lyrics",
+  "@lyricsResyncFailed": {
+    "description": "Snackbar when AI resync fails"
+  },
   "trackMetadataPlay": "Play",
   "@trackMetadataPlay": {
     "description": "Action button - play track"

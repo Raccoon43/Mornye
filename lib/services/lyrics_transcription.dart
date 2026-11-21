@@ -298,17 +298,19 @@ class LyricsTranscriptionClient {
     return File('${(await _cacheRoot()).path}/transcribed_lyrics/$name.lrc');
   }
 
-  /// [retryEmpty] sends the song again when its kept transcript is empty.
+  /// [retryEmpty] sends the song again when its kept transcript is empty;
+  /// [refresh] sends it again whatever was kept.
   Future<String> transcribe(
     String source,
     String path, {
     bool retryEmpty = false,
+    bool refresh = false,
   }) async {
     if (!lyricsTranscriptionSupported(config.provider)) {
       throw const LyricsTranscriptionException('provider takes no audio');
     }
     final cache = await _cacheFile(source);
-    if (await cache.exists()) {
+    if (!refresh && await cache.exists()) {
       final kept = await cache.readAsString();
       if (kept.trim().isNotEmpty || !retryEmpty) return kept;
     }

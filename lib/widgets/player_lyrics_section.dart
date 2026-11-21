@@ -26,6 +26,39 @@ import 'package:mornye/widgets/lyrics_text_scale.dart';
 final _plainLyricDirections =
     Expando<({List<TextDirection?> text, List<TextDirection?> lines})>();
 
+bool lyricsTranscriptionEnabled(AppSettings settings) =>
+    lyricsTranscriptionSupported(
+      LyricsAiProvider.fromId(settings.lyricsAiProvider),
+    );
+
+/// Sends a song to the lyrics AI provider. Reads its providers now: the
+/// widget may be gone when the key arrives. A [retry] sends a song whose
+/// kept transcript is empty again; a [refresh] sends it again regardless.
+LyricsTranscriber playerLyricsTranscriber(
+  WidgetRef ref, {
+  bool retry = false,
+  bool refresh = false,
+}) {
+  final settings = ref.read(settingsProvider);
+  final keyFuture = ref.read(
+    lyricsAiKeyProvider(settings.lyricsAiProvider).future,
+  );
+  final newClient = ref.read(lyricsAiHttpClientProvider);
+  return (source, path) async {
+    final key = await keyFuture;
+    if (!lyricsAiReady(settings, key)) return '';
+    final client = newClient();
+    try {
+      return await LyricsTranscriptionClient(
+        lyricsAiConfigFor(settings, apiKey: key),
+        client: client,
+      ).transcribe(source, path, retryEmpty: retry, refresh: refresh);
+    } finally {
+      client.close();
+    }
+  };
+}
+
 class PlayerLyricsSection extends ConsumerWidget {
   const PlayerLyricsSection({
     super.key,
@@ -100,42 +133,13 @@ class PlayerLyricsSection extends ConsumerWidget {
         metadata.loading ||
         metadata.transcribing ||
         metadata.lyrics.synced ||
-        !_transcriptionSupported(settings)) {
+        !lyricsTranscriptionEnabled(settings)) {
       return;
     }
-    final transcribe = _transcriber(ref);
+    final transcribe = playerLyricsTranscriber(ref);
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => metadata.transcribeLyrics(transcribe),
     );
-  }
-
-  static bool _transcriptionSupported(AppSettings settings) =>
-      lyricsTranscriptionSupported(
-        LyricsAiProvider.fromId(settings.lyricsAiProvider),
-      );
-
-  /// Sends a song to the lyrics AI provider. Reads its providers now: the
-  /// widget may be gone when the key arrives. A [retry] sends a song whose
-  /// kept transcript is empty again.
-  LyricsTranscriber _transcriber(WidgetRef ref, {bool retry = false}) {
-    final settings = ref.read(settingsProvider);
-    final keyFuture = ref.read(
-      lyricsAiKeyProvider(settings.lyricsAiProvider).future,
-    );
-    final newClient = ref.read(lyricsAiHttpClientProvider);
-    return (source, path) async {
-      final key = await keyFuture;
-      if (!lyricsAiReady(settings, key)) return '';
-      final client = newClient();
-      try {
-        return await LyricsTranscriptionClient(
-          lyricsAiConfigFor(settings, apiKey: key),
-          client: client,
-        ).transcribe(source, path, retryEmpty: retry);
-      } finally {
-        client.close();
-      }
-    };
   }
 
   Widget _buildLyricsSection(
@@ -218,14 +222,14 @@ class PlayerLyricsSection extends ConsumerWidget {
           ),
         ],
         if (metadata.canTranscribe &&
-            _transcriptionSupported(ref.read(settingsProvider))) ...[
+            lyricsTranscriptionEnabled(ref.read(settingsProvider))) ...[
           const SizedBox(height: 8),
           ExpressiveButton(
             key: const ValueKey('lyrics-transcribe'),
             tonal: true,
             onPressed: () async {
               final found = await metadata.transcribeLyrics(
-                _transcriber(ref, retry: true),
+                playerLyricsTranscriber(ref, retry: true),
                 force: true,
               );
               if (!found && context.mounted) {

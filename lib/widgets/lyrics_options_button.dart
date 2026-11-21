@@ -27,6 +27,7 @@ import 'package:mornye/widgets/lyrics_options_activity.dart';
 import 'package:mornye/widgets/lyrics_size_setting.dart';
 import 'package:mornye/widgets/mornye_context_menu.dart';
 import 'package:mornye/widgets/player_lyrics_controls.dart';
+import 'package:mornye/widgets/player_lyrics_section.dart';
 
 final _log = AppLogger('LyricsOptions');
 
@@ -245,9 +246,12 @@ class _LyricsOptionsButtonState extends ConsumerState<LyricsOptionsButton> {
         ref.read(settingsProvider).lyricsTranslationAutoSave) {
       _scheduleAutoSave(lyrics);
     }
+    final ai =
+        metadata.canTranscribe &&
+        lyricsTranscriptionEnabled(ref.read(settingsProvider));
     final language =
         pronunciation || translation || canTranslate || translating;
-    if (!language && !timing) {
+    if (!language && !timing && !ai) {
       return canEdit ? _editButton(context) : null;
     }
     final colorScheme = widget.colorScheme;
@@ -293,6 +297,7 @@ class _LyricsOptionsButtonState extends ConsumerState<LyricsOptionsButton> {
           canSaveTranslation: canSaveTranslation,
           canEdit: canEdit,
           timing: timing,
+          ai: ai,
         ),
       ),
     );
@@ -342,6 +347,7 @@ class _LyricsOptionsButtonState extends ConsumerState<LyricsOptionsButton> {
     required bool canSaveTranslation,
     required bool canEdit,
     required bool timing,
+    required bool ai,
   }) async {
     final settings = ref.read(settingsProvider);
     final l10n = context.l10n;
@@ -394,6 +400,10 @@ class _LyricsOptionsButtonState extends ConsumerState<LyricsOptionsButton> {
       if (canSaveTranslation)
         ('saveTranslation', l10n.nowPlayingSaveTranslation, Icons.save_alt),
       if (timing) ('timing', l10n.lyricsOffset, Icons.timer_outlined),
+      if (ai) ...[
+        ('resync', l10n.lyricsResyncAction, Icons.sync_rounded),
+        ('transcribe', l10n.lyricsTranscribeAction, Icons.auto_awesome),
+      ],
       if (canEdit) ('edit', l10n.lyricsEditTitle, Icons.edit_note),
     ];
     _setOpen(true);
@@ -468,6 +478,8 @@ class _LyricsOptionsButtonState extends ConsumerState<LyricsOptionsButton> {
           ref.read(lyricsTranslationProvider.notifier).cancel();
         case 'saveTranslation':
           unawaited(_saveTranslation());
+        case 'resync' || 'transcribe':
+          unawaited(_redoTranscription(retime: action == 'resync'));
       }
     } finally {
       // The language sheet, the timing sheet and the editor keep controls
@@ -504,6 +516,22 @@ class _LyricsOptionsButtonState extends ConsumerState<LyricsOptionsButton> {
         _setOpen(false);
       }
     }
+  }
+
+  Future<void> _redoTranscription({required bool retime}) async {
+    final ok = await widget.metadata.redoTranscription(
+      playerLyricsTranscriber(ref, refresh: true),
+      retime: retime,
+    );
+    if (ok || !mounted) return;
+    showAppSnackBar(
+      context,
+      content: Text(
+        retime
+            ? context.l10n.lyricsResyncFailed
+            : context.l10n.lyricsTranscribeFailed,
+      ),
+    );
   }
 
   /// Songs a save is writing to, across every player view: two views of one

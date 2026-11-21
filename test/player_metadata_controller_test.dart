@@ -852,6 +852,40 @@ void main() {
       expect(controller.lyrics.lines.last.text, 'Bye now');
     });
 
+    test('resync re-times synced lyrics from a fresh transcript', () async {
+      final controller = controllerFor({
+        'lyrics': '[00:01.00]Hello there\n[00:02.00]Bye now',
+      });
+      await controller.load(_item('a'));
+      final ok = await controller.redoTranscription(
+        (_, _) async => '[00:04.00]hello there\n[00:09.00]bye now',
+        retime: true,
+      );
+      expect(ok, isTrue);
+      expect(controller.aiSynced, isTrue);
+      expect(controller.transcribing, isFalse);
+      expect(controller.lyrics.lines.map((l) => l.time.inSeconds), [4, 9]);
+      expect(controller.lyrics.lines.first.text, 'Hello there');
+    });
+
+    test('AI transcribe replaces the shown lyrics', () async {
+      final controller = controllerFor({'lyrics': 'Old words'});
+      await controller.load(_item('a'));
+      final ok = await controller.redoTranscription(
+        (_, _) async => '[00:03.00]New words',
+        retime: false,
+      );
+      expect(ok, isTrue);
+      expect(controller.transcribed, isTrue);
+      expect(controller.aiSynced, isFalse);
+      expect(controller.lyrics.lines.single.text, 'New words');
+      expect(
+        await controller.redoTranscription((_, _) async => '', retime: false),
+        isFalse,
+      );
+      expect(controller.lyrics.lines.single.text, 'New words');
+    });
+
     test('synced lyrics are not sent', () async {
       var calls = 0;
       final controller = controllerFor({'lyrics': '[00:01.00]Timed'});

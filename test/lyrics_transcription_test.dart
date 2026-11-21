@@ -232,6 +232,29 @@ void main() {
     expect(calls, 2);
   });
 
+  test('a refresh asks again even with a kept transcript', () async {
+    var calls = 0;
+    final mock = MockClient((_) async {
+      calls++;
+      return http.Response(
+        jsonEncode({
+          'segments': [
+            {'start': 1.0 * calls, 'text': 'Take $calls'},
+          ],
+        }),
+        200,
+      );
+    });
+    final client = clientFor(LyricsAiProvider.openAi, mock);
+    expect(await client.transcribe('/r.flac', '/r.flac'), '[00:01.00]Take 1');
+    expect(
+      await client.transcribe('/r.flac', '/r.flac', refresh: true),
+      '[00:02.00]Take 2',
+    );
+    expect(await client.transcribe('/r.flac', '/r.flac'), '[00:02.00]Take 2');
+    expect(calls, 2);
+  });
+
   test('Groq transcribes through its own Whisper model', () async {
     final mock = MockClient((request) async {
       expect(

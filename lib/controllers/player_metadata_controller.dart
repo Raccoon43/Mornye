@@ -301,16 +301,72 @@ class PlayerMetadataController extends ChangeNotifier {
     return !parsed.isEmpty;
   }
 
-  Future<bool> _syncPlainLyrics(String plain, ParsedLyrics transcript) async {
+  /// Sends the song to [transcribe] again, which should ignore any kept
+  /// transcript. With [retime] the shown words stay and get new timing, even
+  /// over synced lyrics; otherwise the transcript replaces them. Nothing is
+  /// embedded in the file. Returns whether it worked.
+  Future<bool> redoTranscription(
+    LyricsTranscriber transcribe, {
+    required bool retime,
+  }) async {
+    final source = this.source;
+    final path = filePath;
+    if (_disposed ||
+        _loading ||
+        _transcribing ||
+        _searchingOnline ||
+        _lyrics.isEmpty ||
+        !canTranscribe ||
+        source == null ||
+        path == null) {
+      return false;
+    }
+    final generation = _generation;
+    final shown = _lyrics.plainText;
+    _transcribeTried = true;
+    _transcribing = true;
+    notifyListeners();
+    var parsed = ParsedLyrics.empty;
+    var raw = '';
+    try {
+      raw = await transcribe(source, path);
+      if (_disposed || generation != _generation) return false;
+      if (raw.trim().isNotEmpty) parsed = await _parseLyrics(raw);
+    } catch (error) {
+      _log.w('Could not transcribe lyrics again: $error');
+    }
+    if (_disposed || generation != _generation) return false;
+    if (retime) return _syncPlainLyrics(shown, parsed, overSynced: true);
+    _transcribing = false;
+    // Lyrics changed meanwhile win over the transcript.
+    final ok = !parsed.isEmpty && _lyrics.plainText == shown;
+    if (ok) {
+      _setFileLyrics(parsed, raw);
+      _transcribed = true;
+      _aiSynced = false;
+    }
+    notifyListeners();
+    return ok;
+  }
+
+  Future<bool> _syncPlainLyrics(
+    String plain,
+    ParsedLyrics transcript, {
+    bool overSynced = false,
+  }) async {
     final generation = _generation;
     final raw = syncLyricsToTranscript(plain, transcript);
     final timed = raw == null ? ParsedLyrics.empty : await _parseLyrics(raw);
     if (_disposed || generation != _generation) return false;
     _transcribing = false;
     // Lyrics changed meanwhile win over the timed copy.
-    final ok = timed.synced && !_lyrics.synced && _lyrics.plainText == plain;
+    final ok =
+        timed.synced &&
+        (overSynced || !_lyrics.synced) &&
+        _lyrics.plainText == plain;
     if (ok) {
       _setFileLyrics(timed, raw!);
+      _transcribed = false;
       _aiSynced = true;
     }
     notifyListeners();
