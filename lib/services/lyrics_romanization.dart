@@ -21,7 +21,9 @@ import 'package:mornye/utils/lyrics_parser.dart';
 
 final _log = AppLogger('LyricsRomanization');
 
-const pinyinDataAsset = 'assets/romanization/pinyin.txt.gz';
+// Gzipped, but not named .gz: Android's packager unzips such assets and
+// drops the extension, so the name would not load.
+const pinyinDataAsset = 'assets/romanization/pinyin.bin';
 
 /// Loads the Chinese reading data once, off the UI thread, the first time
 /// Chinese lyrics need it.

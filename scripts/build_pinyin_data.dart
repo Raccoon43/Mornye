@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-/// Builds `assets/romanization/pinyin.txt.gz`, the data of offline Hanyu
+/// Builds `assets/romanization/pinyin.bin`, the data of offline Hanyu
 /// Pinyin for lyrics:
 ///
 /// - one reading for each character, the first `kMandarin` value of the
@@ -108,7 +108,7 @@ Future<void> main(List<String> args) async {
 
   final bytes = utf8.encode(out.toString());
   final gz = GZipCodec(level: 9).encode(bytes);
-  final file = File('assets/romanization/pinyin.txt.gz')
+  final file = File('assets/romanization/pinyin.bin')
     ..createSync(recursive: true)
     ..writeAsBytesSync(gz);
   stdout.writeln(
