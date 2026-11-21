@@ -17,8 +17,8 @@ typedef SafSiblingFinder =
     });
 
 /// The files a song start looks for beside an Android document: its `.mlrc`
-/// and `.lrc` sidecars and its folder's `cover.mp4`. One listing of the
-/// song's folder answers all of them. Lookups of one song shortly after each
+/// and `.lrc` sidecars, its own `.mp4` video and its folder's `cover.mp4`.
+/// One listing of the song's folder answers all of them. Lookups of one song shortly after each
 /// other share that listing, so a file added or removed later is seen when
 /// the song starts again.
 class SafSiblings {
@@ -29,7 +29,7 @@ class SafSiblings {
   static final instance = SafSiblings();
 
   /// The sidecar extensions and file names one listing answers.
-  static const extensions = ['mlrc', 'lrc'];
+  static const extensions = ['mlrc', 'lrc', 'mp4'];
   static const names = ['cover.mp4'];
 
   /// Long enough for the lookups of one song start, which wait on the

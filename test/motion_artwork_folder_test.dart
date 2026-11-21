@@ -344,12 +344,49 @@ void main() {
       );
     });
 
+    test('a song video beside the song wins over the album cover', () async {
+      final album = Directory(p.join(root.path, 'Video'))..createSync();
+      final song = p.join(album.path, '01 Song.flac');
+      File(p.join(album.path, motionArtworkFileName)).writeAsBytesSync([1]);
+      final own = File(p.join(album.path, '01 Song.mp4'))
+        ..writeAsBytesSync([2]);
+      final folder = MotionArtworkFolder(directory: () async => root);
+      expect((await folder.find(song))?.source, own.uri.toString());
+      // Another song of the album still shows the album cover.
+      expect(
+        (await folder.find(p.join(album.path, '02.flac')))?.source,
+        File(p.join(album.path, motionArtworkFileName)).uri.toString(),
+      );
+    });
+
+    test('a document song video wins over the album cover', () async {
+      final folder = MotionArtworkFolder(
+        directory: () async => root,
+        documents: true,
+        songVideo: (song) async => song.endsWith('own')
+            ? (uri: 'content://tree/document/own.mp4', size: 2, modified: 1)
+            : null,
+        sibling: (_, _) async =>
+            (uri: 'content://tree/document/cover', size: 2, modified: 1),
+        copyDocument: (uri) async {
+          final temp = File(p.join(root.path, 'temp-${uri.hashCode}.mp4'));
+          await temp.writeAsBytes(uri.endsWith('own.mp4') ? [8, 8] : [9, 9]);
+          return temp.path;
+        },
+      );
+      final own = await folder.find('content://tree/document/own');
+      final other = await folder.find('content://tree/document/other');
+      expect(File.fromUri(Uri.parse(own!.source)).readAsBytesSync(), [8, 8]);
+      expect(File.fromUri(Uri.parse(other!.source)).readAsBytesSync(), [9, 9]);
+    });
+
     test('copies a document cover in once per version', () async {
       var modified = 1;
       var copies = 0;
       final folder = MotionArtworkFolder(
         directory: () async => root,
         documents: true,
+        songVideo: (_) async => null,
         sibling: (song, name) async {
           expect(name, motionArtworkFileName);
           return (

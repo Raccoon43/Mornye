@@ -30,7 +30,11 @@ void main() {
   });
 
   test('asks for the lyrics files and the animated cover together', () {
-    expect(SafSiblings.extensions, [mlrcExtension, lrcExtension]);
+    expect(SafSiblings.extensions, [
+      mlrcExtension,
+      lrcExtension,
+      songVideoExtension,
+    ]);
     expect(SafSiblings.names, [motionArtworkFileName]);
   });
 

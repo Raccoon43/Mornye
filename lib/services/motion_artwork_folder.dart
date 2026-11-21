@@ -12,6 +12,10 @@ import 'package:mornye/utils/file_access.dart';
 import 'package:mornye/utils/logger.dart';
 
 const motionArtworkFileName = 'cover.mp4';
+
+/// A song's own looping video sits beside it under the song's name, like
+/// `Song.flac` and `Song.mp4`, and shows instead of the album's cover.
+const songVideoExtension = 'mp4';
 const _maxBytes = 64 << 20;
 
 typedef MotionArtworkDocument = ({String uri, int size, int modified});
@@ -23,6 +27,7 @@ class MotionArtworkFolder {
   MotionArtworkFolder({
     Future<Directory> Function()? directory,
     Future<MotionArtworkDocument?> Function(String song, String name)? sibling,
+    Future<MotionArtworkDocument?> Function(String song)? songVideo,
     Future<String?> Function(String uri)? copyDocument,
     Future<bool> Function(
       String treeUri,
@@ -35,6 +40,7 @@ class MotionArtworkFolder {
     bool? documents,
   }) : _directory = directory ?? MotionArtworkStore.defaultDirectory,
        _sibling = sibling ?? _findSibling,
+       _songVideo = songVideo ?? _findSongVideo,
        _copyDocument = copyDocument ?? PlatformBridge.copyContentUriToTemp,
        _folder = SongFolderFile(
          createDocument: createDocument == null
@@ -48,6 +54,7 @@ class MotionArtworkFolder {
   final Future<Directory> Function() _directory;
   final Future<MotionArtworkDocument?> Function(String song, String name)
   _sibling;
+  final Future<MotionArtworkDocument?> Function(String song) _songVideo;
   final Future<String?> Function(String uri) _copyDocument;
   final SongFolderFile _folder;
   final bool _documents;
@@ -78,8 +85,8 @@ class MotionArtworkFolder {
         (file: video, name: motionArtworkFileName, mimeType: 'video/mp4'),
   );
 
-  /// The `cover.mp4` in [song]'s folder as a local file the player can show,
-  /// or null when there is none. Android documents are copied into the app
+  /// The song's own video, else the `cover.mp4` in [song]'s folder, as a
+  /// local file the player can show, or null when there is none. Android documents are copied into the app
   /// once, since the video player only opens files.
   Future<MotionArtwork?> find(String song) async {
     if (song.isEmpty || song.startsWith('network://')) return null;
@@ -97,8 +104,15 @@ class MotionArtworkFolder {
     }
     final path = localSongPath(song);
     if (path == null) return null;
+    final own = p.setExtension(path, '.$songVideoExtension');
+    return await _localVideo(own == path ? null : own) ??
+        await _localVideo(p.join(p.dirname(path), motionArtworkFileName));
+  }
+
+  static Future<MotionArtwork?> _localVideo(String? path) async {
+    if (path == null) return null;
     try {
-      final file = File(p.join(p.dirname(path), motionArtworkFileName));
+      final file = File(path);
       if (!await file.exists()) return null;
       final length = await file.length();
       if (length == 0 || length > _maxBytes) return null;
@@ -110,10 +124,13 @@ class MotionArtworkFolder {
 
   Future<MotionArtwork?> _findDocument(String song) async {
     try {
-      final document = await _sibling(song, motionArtworkFileName);
-      if (document == null || document.size <= 0 || document.size > _maxBytes) {
-        return null;
-      }
+      bool usable(MotionArtworkDocument? d) =>
+          d != null && d.size > 0 && d.size <= _maxBytes;
+      final own = await _songVideo(song);
+      final document = usable(own)
+          ? own
+          : await _sibling(song, motionArtworkFileName);
+      if (document == null || !usable(document)) return null;
       // Songs of one album share a cover: copy it once.
       final pending = _copying[document.uri];
       if (pending != null) return await pending;
@@ -178,4 +195,7 @@ class MotionArtworkFolder {
   ) => SafSiblings.names.contains(name)
       ? SafSiblings.instance.file(song, name)
       : PlatformBridge.findSafSibling(song, name);
+
+  static Future<MotionArtworkDocument?> _findSongVideo(String song) =>
+      SafSiblings.instance.sidecar(song, songVideoExtension);
 }
