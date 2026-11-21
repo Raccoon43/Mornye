@@ -42,7 +42,7 @@ enum LyricsAiProvider {
     openRouter => 'google/gemini-3.5-flash-lite',
     gemini => 'gemini-3.5-flash-lite',
     anthropic => 'claude-haiku-5-5',
-    groq => 'llama-3.3-70b-versatile',
+    groq => 'openai/gpt-oss-120b',
     custom => null,
   };
 
