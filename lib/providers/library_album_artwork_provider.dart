@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mornye/providers/extension_provider.dart';
 import 'package:mornye/providers/local_library_provider.dart';
 import 'package:mornye/providers/player_motion_artwork_provider.dart';
@@ -14,6 +15,9 @@ import 'package:mornye/services/platform_bridge.dart';
 import 'package:mornye/utils/logger.dart';
 
 final _log = AppLogger('AlbumArtwork');
+
+/// The extensions the last whole-Library lookup asked.
+const _triedProvidersKey = 'library_album_artwork_providers';
 
 /// The most a found cover keeps on its longest side, as for scanned covers.
 const _coverMaxDimension = 800;
@@ -173,11 +177,16 @@ class LibraryAlbumArtworkNotifier extends Notifier<LibraryAlbumArtworkState> {
     try {
       final job = _job();
       if (albumKey == null) await job.restore(cancelled: () => _cancelled);
+      final providers = _providers().keys.toList();
+      final prefs = await SharedPreferences.getInstance();
+      final tried = prefs.getStringList(_triedProvidersKey) ?? const [];
       final summary = await job.run(
         covers: covers,
         motion: motion,
         albumKey: albumKey,
         force: albumKey != null,
+        // An extension not asked before may have what earlier ones lacked.
+        recheck: albumKey == null && !providers.every(tried.contains),
         cancelled: () => _cancelled,
         progress: (done, total) {
           if (!ref.mounted) return;
@@ -190,6 +199,9 @@ class LibraryAlbumArtworkNotifier extends Notifier<LibraryAlbumArtworkState> {
           );
         },
       );
+      if (albumKey == null && !summary.cancelled) {
+        await prefs.setStringList(_triedProvidersKey, providers);
+      }
       await _changed(covers: summary.songs > 0, motion: summary.motion > 0);
       return summary;
     } catch (error, stack) {

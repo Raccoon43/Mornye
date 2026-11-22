@@ -484,12 +484,15 @@ class AlbumArtworkJob {
 
   /// Looks up the albums that need a cover ([covers]) or an animated cover
   /// ([motion]). [albumKey] limits it to one album; [force] looks that one
-  /// up again and lets back artwork the user removed.
+  /// up again and lets back artwork the user removed. [recheck] looks up
+  /// again the albums still lacking what is wanted without waiting
+  /// [recheckAfter], as when a new provider may have it.
   Future<AlbumArtworkSummary> run({
     required bool covers,
     required bool motion,
     String? albumKey,
     bool force = false,
+    bool recheck = false,
     bool Function()? cancelled,
     void Function(int done, int total)? progress,
   }) async {
@@ -524,6 +527,7 @@ class AlbumArtworkJob {
           cover: item.cover,
           motion: item.motion,
           force: force,
+          recheck: recheck,
           cancelled: isCancelled,
         );
         if (outcome.failed) failed++;
@@ -551,11 +555,14 @@ class AlbumArtworkJob {
     required bool cover,
     required bool motion,
     required bool force,
+    required bool recheck,
     required bool Function() cancelled,
   }) async {
     final now = _now();
     final AlbumArtworkRecord? latest;
-    if (record != null && !force && !_wantsLookup(record, now, cover, motion)) {
+    if (record != null &&
+        !force &&
+        !_wantsLookup(record, now, cover, motion, recheck: recheck)) {
       latest = record;
     } else {
       latest = await _lookUp(album, record, now, force);
@@ -605,9 +612,12 @@ class AlbumArtworkJob {
     AlbumArtworkRecord record,
     DateTime now,
     bool cover,
-    bool motion,
-  ) {
-    if (now.difference(record.checkedAt) < recheckAfter) return false;
+    bool motion, {
+    bool recheck = false,
+  }) {
+    if (!recheck && now.difference(record.checkedAt) < recheckAfter) {
+      return false;
+    }
     return !record.matched ||
         (cover && record.coverUrl == null) ||
         (motion && record.motionUrl == null);

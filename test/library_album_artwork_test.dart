@@ -148,6 +148,13 @@ void main() {
     searches.clear();
     await job().run(covers: true, motion: false);
     expect(searches, isEmpty);
+    // A new provider rechecks only the album still without a match.
+    await job().run(covers: true, motion: false, recheck: true);
+    expect(searches, [
+      'empty:Example Band Lost Tapes',
+      'full:Example Band Lost Tapes',
+    ]);
+    searches.clear();
     now = now.add(AlbumArtworkJob.recheckAfter);
     await job().run(covers: true, motion: false);
     expect(searches, [
