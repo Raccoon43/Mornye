@@ -7,6 +7,7 @@ import 'package:mornye/l10n/l10n.dart';
 import 'package:mornye/providers/download_queue_provider.dart';
 import 'package:mornye/providers/library_browse_provider.dart';
 import 'package:mornye/providers/library_genres_provider.dart';
+import 'package:mornye/providers/player_motion_artwork_provider.dart';
 import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/screens/downloaded_album_screen.dart';
 import 'package:mornye/screens/library_artist_screen.dart';
@@ -796,6 +797,11 @@ class _MornyeLibraryScreenState extends ConsumerState<MornyeLibraryScreen> {
                     borderRadius: BorderRadius.circular(8),
                     child: _LibraryBrowseArtwork(entry: entry),
                   ),
+                  PositionedDirectional(
+                    start: 8,
+                    top: 8,
+                    child: _MotionArtworkBadge(entry: entry),
+                  ),
                   if (entry.completeness != null)
                     PositionedDirectional(
                       end: 8,
@@ -823,6 +829,39 @@ class _MornyeLibraryScreenState extends ConsumerState<MornyeLibraryScreen> {
               style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Marks an album with a saved animated cover. Reads only what is saved:
+/// the album's own folder `cover.mp4` is not looked for here.
+class _MotionArtworkBadge extends ConsumerWidget {
+  const _MotionArtworkBadge({required this.entry});
+
+  final LibraryBrowseEntry entry;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final artwork = ref.watch(
+      playerMotionArtworkProvider((album: entry.name, artist: entry.artist)),
+    );
+    if (artwork.value == null) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: context.l10n.motionArtwork,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          Icons.motion_photos_on_outlined,
+          size: 16,
+          color: colors.onSurface,
+          semanticLabel: context.l10n.motionArtwork,
         ),
       ),
     );
