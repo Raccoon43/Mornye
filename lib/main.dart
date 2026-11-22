@@ -20,6 +20,7 @@ import 'package:mornye/models/settings.dart';
 import 'package:mornye/models/theme_settings.dart';
 import 'package:mornye/providers/download_queue_provider.dart';
 import 'package:mornye/providers/extension_provider.dart';
+import 'package:mornye/providers/library_album_artwork_provider.dart';
 import 'package:mornye/providers/local_library_provider.dart';
 import 'package:mornye/providers/music_player_provider.dart';
 import 'package:mornye/providers/runtime_profile_provider.dart';
@@ -822,9 +823,21 @@ class _EagerInitializationState extends ConsumerState<EagerInitialization>
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) _maybeAutoScanLocalLibrary();
           });
+          // Auto-scan is off by default, so animated covers are also looked up here.
+          unawaited(_lookUpAlbumArtworkOnLaunch());
         }
       },
     );
+  }
+
+  Future<void> _lookUpAlbumArtworkOnLaunch() async {
+    try {
+      await ref.read(extensionProvider.notifier).ensureInitialized();
+      if (!mounted) return;
+      await ref.read(libraryAlbumArtworkProvider.notifier).afterScan();
+    } catch (_) {
+      // A failed background lookup is retried on the next launch.
+    }
   }
 
   Future<void> _maybeAutoScanLocalLibrary() async {
