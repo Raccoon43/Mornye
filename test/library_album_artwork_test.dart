@@ -97,12 +97,13 @@ void main() {
             searches.add('$provider:$query');
             if (searchFails) throw StateError('offline');
             final result = catalog[query];
-            return provider == 'full' && result != null ? [result] : [];
+            return provider != 'empty' && result != null ? [result] : [];
           },
           details: (provider, id) async => {
             'album_info': {
               'cover_url': 'https://example.com/$id-large.jpg',
-              if (id == 'fl') 'header_video': 'https://example.com/fl.mp4',
+              if (id == 'fl' && provider == 'full')
+                'header_video': 'https://example.com/fl.mp4',
             },
           },
         ),
@@ -232,6 +233,28 @@ void main() {
     searches.clear();
     await job().run(covers: false, motion: true);
     expect(searches, isEmpty);
+  });
+
+  test('a later provider fills in the animated cover', () async {
+    final summary = await job(
+      providers: const ['still', 'full'],
+    ).run(covers: false, motion: true);
+
+    expect(summary.motion, 1);
+    expect(motion, {'first light|example band'});
+    final record = (await store.records())['first light|example band'];
+    expect(record?.providerId, 'still', reason: 'Keeps the first match');
+    expect(record?.motionUrl, 'https://example.com/fl.mp4');
+
+    // Covers alone stop at the first match.
+    searches.clear();
+    await job(providers: const ['still', 'full']).run(
+      covers: true,
+      motion: false,
+      albumKey: 'first light|example band',
+      force: true,
+    );
+    expect(searches, ['still:Example Band First Light']);
   });
 
   test('an album no provider could answer for is tried again', () async {

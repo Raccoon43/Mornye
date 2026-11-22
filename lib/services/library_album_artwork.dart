@@ -390,8 +390,11 @@ class AlbumArtworkLookup {
   final Future<Map<String, dynamic>> Function(String providerId, String id)
   details;
 
-  Future<ArtworkLookup> find(ArtworkAlbum album) async {
+  /// The first provider's match and cover. With [motion], a match without an
+  /// animated cover also asks the later providers for one, since few have any.
+  Future<ArtworkLookup> find(ArtworkAlbum album, {bool motion = false}) async {
     var answered = false;
+    ArtworkFound? found;
     for (final provider in providers) {
       final List<Map<String, dynamic>> results;
       try {
@@ -421,13 +424,21 @@ class AlbumArtworkLookup {
       } catch (error) {
         _log.d('Album details failed on $provider: $error');
       }
-      return ArtworkFound(
-        match,
-        coverUrl: coverUrl ?? match.coverUrl,
-        motionUrl: motionUrl,
-      );
+      found = found == null
+          ? ArtworkFound(
+              match,
+              coverUrl: coverUrl ?? match.coverUrl,
+              motionUrl: motionUrl,
+            )
+          : ArtworkFound(
+              found.candidate,
+              coverUrl: found.coverUrl,
+              motionUrl: motionUrl,
+            );
+      if (!motion || found.motionUrl != null) return found;
     }
-    return answered ? const ArtworkNotFound() : const ArtworkLookupFailed();
+    return found ??
+        (answered ? const ArtworkNotFound() : const ArtworkLookupFailed());
   }
 }
 
@@ -565,7 +576,7 @@ class AlbumArtworkJob {
         !_wantsLookup(record, now, cover, motion, recheck: recheck)) {
       latest = record;
     } else {
-      latest = await _lookUp(album, record, now, force);
+      latest = await _lookUp(album, record, now, force, motion);
     }
     if (latest == null) return (cover: false, motion: false, failed: true);
     var current = latest;
@@ -630,8 +641,9 @@ class AlbumArtworkJob {
     AlbumArtworkRecord? record,
     DateTime now,
     bool force,
+    bool motion,
   ) async {
-    final result = await lookup.find(album.album);
+    final result = await lookup.find(album.album, motion: motion);
     if (result is ArtworkLookupFailed) return null;
     final found = result is ArtworkFound ? result : null;
     final latest = AlbumArtworkRecord(
