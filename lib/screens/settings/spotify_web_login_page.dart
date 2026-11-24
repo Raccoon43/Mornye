@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:mornye/l10n/l10n.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 /// Opens Spotify's web player for the user to sign in to and pops with the
 /// access token the player sends with its own requests. The token is passed
@@ -11,11 +12,6 @@ class SpotifyWebLoginPage extends StatefulWidget {
   @override
   State<SpotifyWebLoginPage> createState() => _SpotifyWebLoginPageState();
 }
-
-// Spotify serves the full web player only to desktop browsers.
-const _desktopUserAgent =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-    '(KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
 
 const _loginUrl =
     'https://accounts.spotify.com/login?continue=https%3A%2F%2Fopen.spotify.com%2F';
@@ -63,7 +59,8 @@ class _SpotifyWebLoginPageState extends State<SpotifyWebLoginPage> {
     super.initState();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent(_desktopUserAgent)
+      // No user-agent override: a desktop UA clashes with the WebView's
+      // Android client hints and Spotify's login check rejects it.
       ..addJavaScriptChannel('MornyeToken', onMessageReceived: _onToken)
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -82,6 +79,13 @@ class _SpotifyWebLoginPageState extends State<SpotifyWebLoginPage> {
         ),
       )
       ..loadRequest(Uri.parse(_loginUrl));
+    // The login check runs in third-party iframes that need their cookies.
+    final platform = _controller.platform;
+    if (platform is AndroidWebViewController) {
+      AndroidWebViewCookieManager(
+        const PlatformWebViewCookieManagerCreationParams(),
+      ).setAcceptThirdPartyCookies(platform, true).ignore();
+    }
   }
 
   void _onToken(JavaScriptMessage message) {
