@@ -3,17 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mornye/l10n/l10n.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/providers/collection_suggestions_provider.dart';
+import 'package:mornye/providers/extension_provider.dart';
 import 'package:mornye/providers/library_collections_provider.dart';
+import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/services/collection_suggestions.dart';
 import 'package:mornye/theme/app_tokens.dart';
 import 'package:mornye/utils/adaptive_layout.dart';
 import 'package:mornye/utils/desktop_platform.dart';
 import 'package:mornye/widgets/app_icon.dart';
+import 'package:mornye/widgets/app_bottom_sheet.dart';
 import 'package:mornye/widgets/app_icon_button.dart';
 import 'package:mornye/widgets/cached_cover_image.dart';
 import 'package:mornye/widgets/desktop/track_list_table.dart';
 import 'package:mornye/widgets/playlist_picker_sheet.dart';
 import 'package:mornye/widgets/preview_button.dart';
+import 'package:mornye/widgets/settings_group.dart';
 import 'package:mornye/widgets/track_card.dart';
 import 'package:mornye/widgets/track_collection_quick_actions.dart';
 import 'package:mornye/widgets/track_detail_actions.dart';
@@ -242,6 +246,11 @@ class _SuggestionsHeader extends StatelessWidget {
             ),
           ),
           AppIconButton(
+            icon: const AppIcon.adaptive(Icons.tune),
+            tooltip: l10n.collectionSuggestionsSource,
+            onPressed: () => _chooseSource(context),
+          ),
+          AppIconButton(
             icon: const AppIcon.adaptive(Icons.refresh),
             tooltip: l10n.collectionSuggestionsRefresh,
             onPressed: onRefresh,
@@ -249,6 +258,45 @@ class _SuggestionsHeader extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Lets the user pick which enabled extension suggests songs, or leave it
+  /// to the app.
+  Future<void> _chooseSource(BuildContext context) async {
+    final container = ProviderScope.containerOf(context);
+    final current = container.read(settingsProvider).suggestionSource;
+    final options = [
+      ('', context.l10n.collectionSuggestionsSourceAutomatic),
+      for (final extension in container.read(extensionProvider).extensions)
+        if (extension.enabled &&
+            (extension.hasRelatedTracks || extension.hasMetadataProvider))
+          (extension.id, extension.displayName),
+    ];
+    final colorScheme = Theme.of(context).colorScheme;
+    final picked = await showAppBottomSheet<String>(
+      context: context,
+      title: context.l10n.collectionSuggestionsSource,
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: SettingsGroup(
+          children: [
+            for (final (id, label) in options)
+              SettingsItem(
+                title: label,
+                selected: id == current,
+                trailing: id == current
+                    ? AppIcon(Icons.check, color: colorScheme.primary)
+                    : null,
+                showDivider: id != options.last.$1,
+                onTap: () => Navigator.pop(sheetContext, id),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) {
+      container.read(settingsProvider.notifier).setSuggestionSource(picked);
+    }
   }
 }
 

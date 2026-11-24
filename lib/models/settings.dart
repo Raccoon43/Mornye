@@ -5,10 +5,13 @@ import 'package:mornye/utils/artist_utils.dart';
 
 part 'settings.g.dart';
 
-/// 'default' (a card) or 'fullscreen' once chosen, else empty for the app
-/// style's own ([AppSettings.playerCoverStyleFor]).
+/// 'default' (a card), 'contain' (a card showing the whole cover) or
+/// 'fullscreen' once chosen, else empty for the app style's own
+/// ([AppSettings.playerCoverStyleFor]).
 String playerCoverStyleFromJson(Object? value) =>
-    value == 'default' || value == 'fullscreen' ? value as String : '';
+    value == 'default' || value == 'contain' || value == 'fullscreen'
+    ? value as String
+    : '';
 
 /// Pre-amp applied on top of ReplayGain during playback, in whole dB.
 /// -7 dB targets -25 LUFS from the -18 LUFS tag reference.
@@ -277,7 +280,11 @@ class AppSettings {
   @JsonKey(fromJson: musicHapticsLevelFromJson)
   final double musicHapticsStrength;
   @JsonKey(fromJson: playerCoverStyleFromJson)
-  final String playerCoverStyle; // 'default' (card), 'fullscreen' or ''
+  final String playerCoverStyle; // 'default', 'contain', 'fullscreen' or ''
+
+  /// Extension ID to ask for collection suggestions, or empty to choose
+  /// one automatically.
+  final String suggestionSource;
   final bool landscapeLyricsArtwork;
   final bool autoHideLyricsControls;
 
@@ -580,6 +587,7 @@ class AppSettings {
     this.musicHapticsSensitivity = 0.5,
     this.musicHapticsStrength = 0.5,
     this.playerCoverStyle = '',
+    this.suggestionSource = '',
     this.landscapeLyricsArtwork = false,
     this.autoHideLyricsControls = true,
     this.autoHideLyricsControlsWithAccessibility = false,
@@ -781,6 +789,7 @@ class AppSettings {
     double? musicHapticsSensitivity,
     double? musicHapticsStrength,
     String? playerCoverStyle,
+    String? suggestionSource,
     bool? landscapeLyricsArtwork,
     bool? autoHideLyricsControls,
     bool? autoHideLyricsControlsWithAccessibility,
@@ -961,6 +970,7 @@ class AppSettings {
           musicHapticsSensitivity ?? this.musicHapticsSensitivity,
       musicHapticsStrength: musicHapticsStrength ?? this.musicHapticsStrength,
       playerCoverStyle: playerCoverStyle ?? this.playerCoverStyle,
+      suggestionSource: suggestionSource ?? this.suggestionSource,
       landscapeLyricsArtwork:
           landscapeLyricsArtwork ?? this.landscapeLyricsArtwork,
       autoHideLyricsControls:

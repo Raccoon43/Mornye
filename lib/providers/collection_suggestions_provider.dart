@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/providers/extension_provider.dart';
+import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/services/collection_suggestions.dart';
 import 'package:mornye/services/platform_bridge.dart';
 
@@ -42,28 +43,46 @@ final collectionSuggestionsProvider = FutureProvider.autoDispose
       request,
     ) async {
       ref.watch(extensionProvider.select(collectionSuggestionSourceKey));
+      final extensions = ref.read(extensionProvider);
+      final seeds = collectionSuggestionSeeds(
+        request.tracks,
+        round: request.round,
+      );
       final source = collectionSuggestionSource(
-        ref.read(extensionProvider),
-        collectionSuggestionSeeds(request.tracks, round: request.round),
+        extensions,
+        seeds,
+        preferred: ref.watch(
+          settingsProvider.select((s) => s.suggestionSource),
+        ),
       );
       if (source == null) return CollectionSuggestions.empty;
-      final suggestions = await loadCollectionSuggestions(
-        tracks: request.tracks,
-        source: source,
-        round: request.round,
-        related: (extensionId, seeds, limit) =>
-            PlatformBridge.getExtensionRelatedTracks(
-              extensionId,
-              seeds,
-              limit: limit,
-            ),
-        search: (extensionId, query) =>
-            PlatformBridge.searchTracksWithMetadataProvider(
-              extensionId,
-              query,
-              limit: 15,
-            ),
-      );
+      Future<CollectionSuggestions> load(CollectionSuggestionSource source) =>
+          loadCollectionSuggestions(
+            tracks: request.tracks,
+            source: source,
+            round: request.round,
+            related: (extensionId, seeds, limit) =>
+                PlatformBridge.getExtensionRelatedTracks(
+                  extensionId,
+                  seeds,
+                  limit: limit,
+                ),
+            search: (extensionId, query) =>
+                PlatformBridge.searchTracksWithMetadataProvider(
+                  extensionId,
+                  query,
+                  limit: 15,
+                ),
+          );
+      var suggestions = await load(source);
+      // A chosen source with nothing to suggest falls back to the automatic
+      // one, so the section (and its source button) stays on screen.
+      final auto = collectionSuggestionSource(extensions, seeds);
+      if (suggestions.tracks.isEmpty &&
+          auto != null &&
+          auto.extensionId != source.extensionId) {
+        suggestions = await load(auto);
+      }
       final link = ref.keepAlive();
       final timer = Timer(collectionSuggestionsKeepAlive, link.close);
       ref.onDispose(timer.cancel);

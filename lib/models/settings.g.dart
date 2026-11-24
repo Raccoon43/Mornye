@@ -105,6 +105,7 @@ AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
   playerCoverStyle: json['playerCoverStyle'] == null
       ? ''
       : playerCoverStyleFromJson(json['playerCoverStyle']),
+  suggestionSource: json['suggestionSource'] as String? ?? '',
   landscapeLyricsArtwork: json['landscapeLyricsArtwork'] as bool? ?? false,
   autoHideLyricsControls: json['autoHideLyricsControls'] as bool? ?? true,
   autoHideLyricsControlsWithAccessibility:
@@ -317,6 +318,7 @@ Map<String, dynamic> _$AppSettingsToJson(
   'musicHapticsSensitivity': instance.musicHapticsSensitivity,
   'musicHapticsStrength': instance.musicHapticsStrength,
   'playerCoverStyle': instance.playerCoverStyle,
+  'suggestionSource': instance.suggestionSource,
   'landscapeLyricsArtwork': instance.landscapeLyricsArtwork,
   'autoHideLyricsControls': instance.autoHideLyricsControls,
   'autoHideLyricsControlsWithAccessibility':

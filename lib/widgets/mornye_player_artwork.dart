@@ -49,6 +49,12 @@ class _MornyePlayerArtworkState extends ConsumerState<MornyePlayerArtwork> {
       colorScheme: Theme.of(context).colorScheme,
       cacheWidth: PlayerArtwork.transitionCacheWidth(context),
       crossfade: widget.crossfade,
+      fit:
+          ref.watch(
+            settingsProvider.select((s) => s.playerCoverStyle == 'contain'),
+          )
+          ? BoxFit.contain
+          : BoxFit.cover,
     );
     // Without a video, the still cover fills its box (a full-screen box is
     // taller than wide and crops the sides). A video keeps the square cover

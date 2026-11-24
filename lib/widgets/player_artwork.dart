@@ -31,6 +31,10 @@ class PlayerArtwork extends StatelessWidget {
   /// while it fades in.
   final AppMotionSpec? crossfadeScale;
 
+  /// How the cover fills its box: cropped by default, whole with
+  /// [BoxFit.contain].
+  final BoxFit fit;
+
   const PlayerArtwork({
     super.key,
     required this.artUri,
@@ -39,6 +43,7 @@ class PlayerArtwork extends StatelessWidget {
     this.iconSize = 40,
     this.crossfade,
     this.crossfadeScale,
+    this.fit = BoxFit.cover,
   });
 
   /// Share one full-size decode while artwork moves between player panels.
@@ -75,7 +80,7 @@ class PlayerArtwork extends StatelessWidget {
     if (isHttpCoverUrl(uri)) {
       return CachedNetworkImage(
         imageUrl: uri!,
-        fit: BoxFit.cover,
+        fit: fit,
         cacheManager: CoverCacheManager.instance,
         memCacheWidth: cacheWidth,
         fadeInDuration: Duration.zero,
@@ -91,7 +96,7 @@ class PlayerArtwork extends StatelessWidget {
     }
     return Image(
       image: image,
-      fit: BoxFit.cover,
+      fit: fit,
       gaplessPlayback: true,
       errorBuilder: (_, _, _) => placeholder,
     );
@@ -112,7 +117,7 @@ class PlayerArtwork extends StatelessWidget {
     }
     return Image(
       image: image,
-      fit: BoxFit.cover,
+      fit: fit,
       gaplessPlayback: true,
       frameBuilder: (_, child, frame, synchronous) {
         if (frame == null && !synchronous) return placeholder;

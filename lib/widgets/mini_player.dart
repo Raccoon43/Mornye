@@ -55,6 +55,7 @@ class MiniPlayer extends ConsumerStatefulWidget {
 class _MiniPlayerState extends ConsumerState<MiniPlayer> {
   Uri? _warmedArtUri;
   (Uri, int)? _warmedTransition;
+  Uri? _warmedNextArtUri;
 
   @override
   void initState() {
@@ -72,6 +73,8 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
         ref.read(currentMediaItemProvider).value?.artUri,
       ),
     );
+    ref.listenManual(playQueueProvider, (_, _) => _warmNextCover());
+    ref.listenManual(currentQueueIndexProvider, (_, _) => _warmNextCover());
   }
 
   @override
@@ -79,6 +82,31 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
     super.didChangeDependencies();
     _warmCoverColour(ref.read(currentMediaItemProvider).value?.artUri);
     _warmFullScreenArtwork(ref.read(currentMediaItemProvider).value?.artUri);
+    _warmNextCover();
+  }
+
+  // Decodes the up-next cover before the skip, so the new track shows its
+  // cover on the first frame instead of fading in after a download.
+  void _warmNextCover() {
+    final queue = ref.read(playQueueProvider).value;
+    final next = ref.read(currentQueueIndexProvider) + 1;
+    if (queue == null || next <= 0 || next >= queue.length) return;
+    final artUri = queue[next].artUri;
+    if (artUri == null || artUri == _warmedNextArtUri) return;
+    _warmedNextArtUri = artUri;
+    final url = artUri.toString();
+    precacheCoverImage(context, url, cacheWidth: PlayerArtwork.miniCacheWidth);
+    if (!context.isMornye &&
+        !isDesktopPlatform &&
+        ref.read(settingsProvider).playerCoverStyleFor(mornye: false) ==
+            'fullscreen' &&
+        MediaQuery.orientationOf(context) == Orientation.portrait) {
+      precacheCoverImage(
+        context,
+        url,
+        cacheWidth: PlayerArtwork.transitionCacheWidth(context),
+      );
+    }
   }
 
   void _warmFullScreenArtwork(Uri? artUri) {

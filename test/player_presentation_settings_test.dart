@@ -73,6 +73,14 @@ void main() {
     }
   });
 
+  test('whole cover style survives a round trip as a card style', () {
+    final restored = AppSettings.fromJson(
+      AppSettings.fromJson({'playerCoverStyle': 'contain'}).toJson(),
+    );
+    expect(restored.playerCoverStyle, 'contain');
+    expect(restored.playerCoverStyleFor(mornye: false), 'contain');
+  });
+
   test('fullscreen lyrics accessibility opt-in survives a round trip', () {
     final legacy = AppSettings.fromJson({'autoHideLyricsControls': true});
     expect(

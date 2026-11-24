@@ -120,16 +120,27 @@ class MaterialPlayerLayout extends StatelessWidget {
                         // spring and grows from 0.94 on the slow spatial
                         // spring, which does not overshoot because the app
                         // started this motion.
-                        child: PlayerArtwork(
-                          artUri: mediaItem.artUri?.toString(),
-                          colorScheme: colorScheme,
-                          cacheWidth:
-                              (artSize * MediaQuery.devicePixelRatioOf(context))
-                                  .round(),
-                          crossfade: playerTrackChangeMotion(context),
-                          crossfadeScale: AppMotion.spatialSlow(
-                            context,
-                            playerTrackChangeMotion(context),
+                        child: Consumer(
+                          builder: (context, ref, _) => PlayerArtwork(
+                            artUri: mediaItem.artUri?.toString(),
+                            colorScheme: colorScheme,
+                            cacheWidth:
+                                (artSize *
+                                        MediaQuery.devicePixelRatioOf(context))
+                                    .round(),
+                            crossfade: playerTrackChangeMotion(context),
+                            crossfadeScale: AppMotion.spatialSlow(
+                              context,
+                              playerTrackChangeMotion(context),
+                            ),
+                            fit:
+                                ref.watch(
+                                  settingsProvider.select(
+                                    (s) => s.playerCoverStyle == 'contain',
+                                  ),
+                                )
+                                ? BoxFit.contain
+                                : BoxFit.cover,
                           ),
                         ),
                       ),

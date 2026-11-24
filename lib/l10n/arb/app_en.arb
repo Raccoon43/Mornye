@@ -9437,6 +9437,14 @@
   "@playerCoverStyleDefaultDescription": {
     "description": "Subtitle of the default cover art style"
   },
+  "playerCoverStyleWhole": "Whole cover",
+  "@playerCoverStyleWhole": {
+    "description": "Cover art style: a card that shows the whole cover without cropping"
+  },
+  "playerCoverStyleWholeDescription": "Artwork as a card, showing the whole cover even when it is not square",
+  "@playerCoverStyleWholeDescription": {
+    "description": "Subtitle of the whole cover art style"
+  },
   "playerCoverStyleFullScreen": "Full screen",
   "@playerCoverStyleFullScreen": {
     "description": "Cover art style: artwork fills the top of the player"
@@ -11867,6 +11875,14 @@
   "collectionSuggestionsRefresh": "Suggest other songs",
   "@collectionSuggestionsRefresh": {
     "description": "Tooltip of the button that loads other suggestions"
+  },
+  "collectionSuggestionsSource": "Suggest from",
+  "@collectionSuggestionsSource": {
+    "description": "Tooltip and sheet title for choosing which extension suggests songs"
+  },
+  "collectionSuggestionsSourceAutomatic": "Automatic",
+  "@collectionSuggestionsSourceAutomatic": {
+    "description": "Option that lets the app choose the extension that suggests songs"
   },
   "lastfmDescription": "Track your listening and show what is playing on Last.fm.",
   "lastfmConnect": "Connect Last.fm",

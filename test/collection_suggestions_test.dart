@@ -154,6 +154,34 @@ void main() {
       expect(source?.extensionId, 'example.second');
     });
 
+    test('uses the chosen extension while it is enabled and can suggest', () {
+      final state = ExtensionState(
+        extensions: [
+          _extension('example.related', related: true),
+          _extension('example.search', metadata: true),
+          _extension('example.off', metadata: true, enabled: false),
+        ],
+      );
+      final chosen = collectionSuggestionSource(
+        state,
+        const [],
+        preferred: 'example.search',
+      );
+      expect(chosen?.extensionId, 'example.search');
+      expect(chosen?.related, isFalse);
+      // A disabled or missing choice falls back to the automatic pick.
+      for (final preferred in ['example.off', 'example.gone']) {
+        expect(
+          collectionSuggestionSource(
+            state,
+            const [],
+            preferred: preferred,
+          )?.extensionId,
+          'example.related',
+        );
+      }
+    });
+
     test('falls back to the first metadata provider in priority order', () {
       final source = collectionSuggestionSource(
         ExtensionState(

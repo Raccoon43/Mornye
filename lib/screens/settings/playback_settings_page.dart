@@ -488,6 +488,12 @@ class _PlaybackSettingsPageState extends ConsumerState<PlaybackSettingsPage>
                   context.l10n.playerCoverStyleDefaultDescription,
                 ),
                 (
+                  'contain',
+                  Icons.fit_screen_outlined,
+                  context.l10n.playerCoverStyleWhole,
+                  context.l10n.playerCoverStyleWholeDescription,
+                ),
+                (
                   'fullscreen',
                   Icons.fullscreen,
                   context.l10n.playerCoverStyleFullScreen,

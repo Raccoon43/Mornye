@@ -39,14 +39,26 @@ const collectionSuggestionSeedCount = 3;
 /// `relatedTracks`, preferring the one most seeds came from (it can use
 /// their IDs instead of looking them up), then the metadata provider order.
 /// Without one, the first enabled metadata provider searches by artist.
+/// A [preferred] extension the user chose wins while it is enabled and can
+/// suggest.
 CollectionSuggestionSource? collectionSuggestionSource(
   ExtensionState state,
-  List<Track> seeds,
-) {
+  List<Track> seeds, {
+  String preferred = '',
+}) {
   final enabled = [
     for (final extension in state.extensions)
       if (extension.enabled) extension,
   ];
+  for (final extension in enabled) {
+    if (extension.id == preferred &&
+        (extension.hasRelatedTracks || extension.hasMetadataProvider)) {
+      return CollectionSuggestionSource(
+        extensionId: extension.id,
+        related: extension.hasRelatedTracks,
+      );
+    }
+  }
   int rank(Extension extension) {
     final index = state.metadataProviderPriority.indexOf(extension.id);
     return index < 0 ? state.metadataProviderPriority.length : index;

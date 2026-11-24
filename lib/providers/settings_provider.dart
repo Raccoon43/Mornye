@@ -737,6 +737,9 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state.copyWith(playerCoverStyle: playerCoverStyleFromJson(style)),
   );
 
+  void setSuggestionSource(String extensionId) =>
+      _commit(state.copyWith(suggestionSource: extensionId));
+
   void setLandscapeLyricsArtwork(bool enabled) =>
       _commit(state.copyWith(landscapeLyricsArtwork: enabled));
 
