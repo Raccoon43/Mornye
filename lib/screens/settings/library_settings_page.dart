@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:mornye/controllers/clickable_metadata.dart';
 import 'package:mornye/controllers/library_re_enrich_all.dart';
 import 'package:mornye/l10n/l10n.dart';
 import 'package:mornye/models/library_scan_failure.dart';
@@ -17,7 +16,6 @@ import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/providers/download_history_provider.dart';
 import 'package:mornye/providers/library_album_artwork_provider.dart';
 import 'package:mornye/providers/local_library_provider.dart';
-import 'package:mornye/screens/settings/spotify_sync_page.dart';
 import 'package:mornye/services/library_database.dart';
 import 'package:mornye/services/link/link_source_names.dart';
 import 'package:mornye/services/platform_bridge.dart';
@@ -25,6 +23,8 @@ import 'package:mornye/utils/adaptive_layout.dart';
 import 'package:mornye/utils/nav_bar_inset.dart';
 import 'package:mornye/widgets/duplicate_review_sheet.dart';
 import 'package:mornye/widgets/app_bottom_sheet.dart';
+import 'package:mornye/widgets/create_playlist_sheet.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:mornye/widgets/settings_group.dart';
 import 'package:mornye/widgets/app_icon.dart';
 import 'package:mornye/widgets/app_loading_indicator.dart';
@@ -225,6 +225,36 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
 
   Future<void> _cancelScan() async {
     await ref.read(localLibraryProvider.notifier).cancelScan();
+  }
+
+  /// Free playlist import: export from a free web tool, then pick the file.
+  /// No streaming-service login, so it works without any subscription.
+  void _showPlaylistImportHelp(BuildContext context) {
+    final l10n = context.l10n;
+    showAppDialog<void>(
+      context: context,
+      builder: (dialogContext) => AppAlertDialog(
+        title: Text(l10n.playlistManualImport),
+        content: Text(l10n.playlistManualImportHelp),
+        actions: [
+          AppDialogAction(
+            onPressed: () => launchUrl(
+              Uri.parse('https://exportify.net'),
+              mode: LaunchMode.externalApplication,
+            ),
+            child: Text(l10n.playlistManualImportOpenExportify),
+          ),
+          AppDialogAction(
+            filled: true,
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              importPlaylistFile(this.context, ref);
+            },
+            child: Text(l10n.playlistManualImportChooseFile),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pauseScan() async {
@@ -625,13 +655,10 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
                       .setLibrarySongTap(mode),
                 ),
                 SettingsItem(
-                  icon: Icons.sync_rounded,
-                  title: context.l10n.spotifySyncTitle,
-                  subtitle: context.l10n.spotifySyncSubtitle,
-                  onTap: () => pushPage<void>(
-                    context,
-                    (_) => const SpotifySyncPage(),
-                  ),
+                  icon: Icons.playlist_add_rounded,
+                  title: context.l10n.playlistManualImport,
+                  subtitle: context.l10n.playlistManualImportSubtitle,
+                  onTap: () => _showPlaylistImportHelp(context),
                 ),
               ],
             ),

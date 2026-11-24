@@ -10151,38 +10151,6 @@
       }
     }
   },
-  "spotifySyncTitle": "Spotify playlists",
-  "spotifySyncSubtitle": "Log in to Spotify and copy your playlists into the library",
-  "spotifySyncSetup": "Setup",
-  "spotifySyncSetupSteps": "1. Open developer.spotify.com/dashboard and create an app with Web API ticked.\n2. Add the redirect URI below to the app.\n3. Under User Management, add each Spotify account that will log in.\n4. Paste the app's Client ID here and log in.\nSpotify requires the app owner to have Premium.",
-  "spotifySyncRedirect": "Redirect URI (tap to copy)",
-  "spotifySyncClientId": "Client ID",
-  "spotifySyncLogin": "Log in with Spotify",
-  "spotifySyncLogout": "Log out of Spotify",
-  "spotifySyncPlaylists": "Your playlists",
-  "spotifySyncHint": "Syncing adds a library playlist, then adds only songs that are new on Spotify. Nothing is removed or downloaded.",
-  "spotifySyncNotOwned": "Spotify only shares songs of playlists you own or collaborate on",
-  "spotifySyncEmpty": "No playlists found",
-  "spotifySyncCopied": "Redirect URI copied",
-  "spotifySyncSongs": "{count, plural, =1{1 song} other{{count} songs}}",
-  "@spotifySyncSongs": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "spotifySyncDone": "{name}: {count, plural, =0{no new songs} =1{1 new song} other{{count} new songs}}",
-  "@spotifySyncDone": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "equalizerResetTitle": "Reset equalizer?",
   "equalizerResetDescription": "Restore a flat curve, default tone and dynamics settings. Saved presets are kept.",
   "equalizerBypass": "Bit-perfect, Direct USB and exclusive Hi-Res outputs bypass EQ. Disable bit-perfect output to use EQ. External players manage their own effects.",
@@ -11676,6 +11644,26 @@
   "playlistImportFileSubtitle": "M3U, M3U8 or CSV, matched to files on this device",
   "@playlistImportFileSubtitle": {
     "description": "Subtitle of the import playlist file option"
+  },
+  "playlistManualImport": "Import Spotify or other playlists",
+  "@playlistManualImport": {
+    "description": "Library settings item and dialog title for the free playlist file import"
+  },
+  "playlistManualImportSubtitle": "Free, no login: import a CSV export",
+  "@playlistManualImportSubtitle": {
+    "description": "Subtitle of the free playlist file import settings item"
+  },
+  "playlistManualImportHelp": "1. Open Exportify (exportify.net) or TuneMyMusic in a browser. Both are free and work with free Spotify accounts.\n2. Export the playlist as a CSV file.\n3. Tap Choose file and pick the CSV. Mornye makes it a playlist and matches songs already on this device.\n\nM3U and M3U8 files work too.",
+  "@playlistManualImportHelp": {
+    "description": "Steps for exporting a playlist to CSV with a free web tool and importing it"
+  },
+  "playlistManualImportOpenExportify": "Open Exportify",
+  "@playlistManualImportOpenExportify": {
+    "description": "Dialog action that opens the Exportify website"
+  },
+  "playlistManualImportChooseFile": "Choose file",
+  "@playlistManualImportChooseFile": {
+    "description": "Dialog action that picks a playlist file to import"
   },
   "playlistFolderPickerTitle": "Choose a folder",
   "@playlistFolderPickerTitle": {

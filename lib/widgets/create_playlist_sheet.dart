@@ -73,7 +73,7 @@ Future<void> showCreatePlaylistSheet(
     case _PlaylistSource.folder:
       await _createFromFolder(context, ref);
     case _PlaylistSource.file:
-      await _importFile(context, ref);
+      await importPlaylistFile(context, ref);
   }
 }
 
@@ -118,7 +118,9 @@ Future<void> _createFromFolder(BuildContext context, WidgetRef ref) async {
   );
 }
 
-Future<void> _importFile(BuildContext context, WidgetRef ref) async {
+/// Picks an M3U, M3U8 or CSV file and makes it a playlist. Unmatched
+/// entries stay in the playlist as metadata for streaming or download.
+Future<void> importPlaylistFile(BuildContext context, WidgetRef ref) async {
   final l10n = context.l10n;
   final List<PlaylistImportEntry> entries;
   final String fileName;
