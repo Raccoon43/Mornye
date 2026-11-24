@@ -41,6 +41,8 @@ class DesktopDeepLinks {
   /// Returns whether the backend accepted [uri] as an extension callback.
   Future<bool> handle(Uri uri) async {
     if (!isAppLink(uri)) return false;
+    // SpotifySyncService listens for its own login redirect.
+    if (uri.host == 'spotify-sync') return false;
     _log.i('Received deep link ${describe(uri)}');
     try {
       final queued = await _queueCallback(uri.toString());

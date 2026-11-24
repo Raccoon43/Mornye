@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:mornye/controllers/clickable_metadata.dart';
 import 'package:mornye/controllers/library_re_enrich_all.dart';
 import 'package:mornye/l10n/l10n.dart';
 import 'package:mornye/models/library_scan_failure.dart';
@@ -16,6 +17,7 @@ import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/providers/download_history_provider.dart';
 import 'package:mornye/providers/library_album_artwork_provider.dart';
 import 'package:mornye/providers/local_library_provider.dart';
+import 'package:mornye/screens/settings/spotify_sync_page.dart';
 import 'package:mornye/services/library_database.dart';
 import 'package:mornye/services/link/link_source_names.dart';
 import 'package:mornye/services/platform_bridge.dart';
@@ -621,6 +623,15 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
                   onChanged: (mode) => ref
                       .read(settingsProvider.notifier)
                       .setLibrarySongTap(mode),
+                ),
+                SettingsItem(
+                  icon: Icons.sync_rounded,
+                  title: context.l10n.spotifySyncTitle,
+                  subtitle: context.l10n.spotifySyncSubtitle,
+                  onTap: () => pushPage<void>(
+                    context,
+                    (_) => const SpotifySyncPage(),
+                  ),
                 ),
               ],
             ),
