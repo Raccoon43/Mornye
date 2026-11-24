@@ -339,12 +339,18 @@ class _PresetBar extends ConsumerWidget {
                         label: l10n.equalizerManagePresets,
                         leading: const AppIcon(Icons.tune),
                       ),
-                      if (!busy)
+                      if (!busy) ...[
+                        AppMenuItem(
+                          value: _PresetAction.autoEq,
+                          label: l10n.equalizerAutoEq,
+                          leading: const AppIcon(Icons.headphones),
+                        ),
                         AppMenuItem(
                           value: _PresetAction.import,
                           label: l10n.equalizerImport,
                           leading: const AppIcon(Icons.file_open_outlined),
                         ),
+                      ],
                       AppMenuItem(
                         value: _PresetAction.export,
                         label: l10n.equalizerExport,
@@ -358,6 +364,80 @@ class _PresetBar extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _AutoEqSheet extends StatefulWidget {
+  const _AutoEqSheet({required this.onPick});
+  final ValueChanged<AutoEqEntry> onPick;
+
+  @override
+  State<_AutoEqSheet> createState() => _AutoEqSheetState();
+}
+
+class _AutoEqSheetState extends State<_AutoEqSheet> {
+  late final _index = autoEqService.index();
+  var _words = const <String>[];
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    return SizedBox(
+      // A fixed height keeps the list scrollable inside the sheet.
+      height: MediaQuery.sizeOf(context).height * 0.6,
+      child: Column(
+        children: [
+          AppTextField(
+            hint: l10n.equalizerAutoEqSearch,
+            leading: const AppIcon(Icons.search),
+            textInputAction: TextInputAction.search,
+            autocorrect: false,
+            onChanged: (value) => setState(
+              () => _words = value
+                  .toLowerCase()
+                  .split(' ')
+                  .where((w) => w.isNotEmpty)
+                  .toList(),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<AutoEqEntry>>(
+              future: _index,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text(l10n.equalizerAutoEqFailed));
+                }
+                final all = snapshot.data;
+                if (all == null) {
+                  return const Center(child: AppLoadingIndicator());
+                }
+                final hits = [
+                  for (final entry in all)
+                    if (_words.every(entry.name.toLowerCase().contains)) entry,
+                ];
+                return ListView.builder(
+                  itemCount: hits.length,
+                  itemBuilder: (context, i) => AppSheetOption(
+                    title: Text(hits[i].name),
+                    subtitle: Text(hits[i].source),
+                    onTap: () => widget.onPick(hits[i]),
+                  ),
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text(
+              l10n.equalizerAutoEqCredit,
+              style: theme.textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

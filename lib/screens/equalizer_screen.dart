@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:mornye/l10n/l10n.dart';
 import 'package:mornye/models/equalizer_settings.dart';
 import 'package:mornye/providers/equalizer_provider.dart';
+import 'package:mornye/services/autoeq_service.dart';
 import 'package:mornye/services/playback_equalizer.dart';
 import 'package:mornye/theme/app_motion.dart';
 import 'package:mornye/theme/app_tokens.dart';
@@ -20,6 +21,7 @@ import 'package:mornye/widgets/app_alert_dialog.dart';
 import 'package:mornye/widgets/app_bottom_sheet.dart';
 import 'package:mornye/widgets/app_choice_chip.dart';
 import 'package:mornye/widgets/app_icon.dart';
+import 'package:mornye/widgets/app_loading_indicator.dart';
 import 'package:mornye/widgets/app_menu_button.dart';
 import 'package:mornye/widgets/app_slider.dart';
 import 'package:mornye/widgets/app_sliver_header.dart';
@@ -43,7 +45,7 @@ class EqualizerScreen extends ConsumerStatefulWidget {
   ConsumerState<EqualizerScreen> createState() => _EqualizerScreenState();
 }
 
-enum _PresetAction { manage, import, export }
+enum _PresetAction { manage, autoEq, import, export }
 
 final _selectedEqualizerPresetProvider = Provider<EqualizerPreset?>(
   (ref) => _matchingPreset(ref.watch(equalizerProvider)),
@@ -176,6 +178,32 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     ),
   );
 
+  Future<void> _autoEq() async {
+    final entry = await showAppBottomSheet<AutoEqEntry>(
+      context: context,
+      useRootNavigator: true,
+      title: context.l10n.equalizerAutoEq,
+      maxHeightFactor: 0.85,
+      builder: (sheetContext) =>
+          _AutoEqSheet(onPick: (entry) => Navigator.pop(sheetContext, entry)),
+    );
+    if (entry == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final points = await autoEqService.profile(entry);
+      if (!mounted) return;
+      final settings = ref.read(equalizerProvider).settings;
+      ref
+          .read(equalizerProvider.notifier)
+          .update(autoEqSettings(points, settings.copyWith(enabled: true)));
+      _message(context.l10n.equalizerAutoEqApplied(entry.name));
+    } catch (_) {
+      if (mounted) _message(context.l10n.equalizerAutoEqFailed);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _reset() async {
     final accepted = await showAppDialog<bool>(
       context: context,
@@ -283,6 +311,10 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                     onTap: _presets,
                   ),
                   _ActionRow(
+                    label: l10n.equalizerAutoEq,
+                    onTap: _busy ? null : _autoEq,
+                  ),
+                  _ActionRow(
                     label: l10n.equalizerSavePreset,
                     onTap: _savePreset,
                   ),
@@ -320,6 +352,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                 onReset: _reset,
                 onAction: (action) => switch (action) {
                   _PresetAction.manage => _presets(),
+                  _PresetAction.autoEq => _autoEq(),
                   _PresetAction.import => _import(),
                   _PresetAction.export => _export(),
                 },

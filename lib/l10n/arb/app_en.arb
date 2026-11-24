@@ -10139,6 +10139,18 @@
   "equalizerExport": "Share preset",
   "equalizerImportInvalid": "Choose a valid Mornye equalizer preset (JSON, up to 64 KB).",
   "equalizerSaved": "Preset saved",
+  "equalizerAutoEq": "Headphone correction",
+  "equalizerAutoEqSearch": "Search headphones",
+  "equalizerAutoEqCredit": "Corrections from AutoEq by Jaakko Pasanen (MIT). Searching needs a connection the first time.",
+  "equalizerAutoEqFailed": "Could not load AutoEq. Check your connection.",
+  "equalizerAutoEqApplied": "Applied {name}",
+  "@equalizerAutoEqApplied": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "equalizerResetTitle": "Reset equalizer?",
   "equalizerResetDescription": "Restore a flat curve, default tone and dynamics settings. Saved presets are kept.",
   "equalizerBypass": "Bit-perfect, Direct USB and exclusive Hi-Res outputs bypass EQ. Disable bit-perfect output to use EQ. External players manage their own effects.",
