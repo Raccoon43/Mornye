@@ -10159,6 +10159,36 @@
       }
     }
   },
+  "spotifySyncTitle": "Spotify playlists (test)",
+  "spotifySyncSubtitle": "Sign in to the Spotify web player and copy your playlists into the library",
+  "spotifySyncConnect": "Connect Spotify",
+  "spotifySyncDisconnect": "Disconnect and sign out",
+  "spotifySyncRiskTitle": "Unofficial Spotify sync",
+  "spotifySyncRiskBody": "This test feature reads your playlists through Spotify's web player session, which Spotify does not allow for other apps. It may stop working at any time and could put your Spotify account at risk. Your sign-in stays in the app's web view; the access key is kept in memory only and never saved.",
+  "spotifySyncRiskAccept": "I understand",
+  "spotifySyncLoginHint": "Sign in to Spotify. The page closes by itself once your library loads; open Your Library if it does not continue.",
+  "spotifySyncPlaylists": "Your playlists",
+  "spotifySyncHint": "Syncing adds a library playlist, then adds only songs that are new on Spotify. Nothing is removed or downloaded.",
+  "spotifySyncEmpty": "No playlists found",
+  "spotifySyncSongs": "{count, plural, =1{1 song} other{{count} songs}}",
+  "@spotifySyncSongs": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "spotifySyncDone": "{name}: {count, plural, =0{no new songs} =1{1 new song} other{{count} new songs}}",
+  "@spotifySyncDone": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "equalizerResetTitle": "Reset equalizer?",
   "equalizerResetDescription": "Restore a flat curve, default tone and dynamics settings. Saved presets are kept.",
   "equalizerBypass": "Bit-perfect, Direct USB and exclusive Hi-Res outputs bypass EQ. Disable bit-perfect output to use EQ. External players manage their own effects.",
