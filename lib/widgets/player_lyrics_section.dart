@@ -22,6 +22,7 @@ import 'package:mornye/widgets/lyrics_editor_sheet.dart';
 import 'package:mornye/widgets/lyrics_options_activity.dart';
 import 'package:mornye/widgets/player_lyrics.dart';
 import 'package:mornye/widgets/lyrics_text_scale.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// The directions of plain lyrics' lines, worked out once for each lyrics.
 final _plainLyricDirections =
@@ -32,10 +33,29 @@ bool lyricsTranscriptionEnabled(AppSettings settings) =>
       LyricsAiProvider.fromId(settings.lyricsAiProvider),
     );
 
+const _transcriptLanguageKey = 'lyrics_transcript_language_v1:';
+
+/// The lyrics language picker's code picked for [source]'s AI lyrics, or
+/// null to detect it.
+// shortcut: one preference per song, never pruned; move to a capped map if
+// many songs get one.
+Future<String?> transcriptLanguageOf(String source) async =>
+    (await SharedPreferences.getInstance()).getString(
+      '$_transcriptLanguageKey$source',
+    );
+
+/// Picks [code] for [source]'s AI lyrics; empty goes back to detecting it.
+Future<void> setTranscriptLanguage(String source, String code) async {
+  final prefs = await SharedPreferences.getInstance();
+  final key = '$_transcriptLanguageKey$source';
+  await (code.isEmpty ? prefs.remove(key) : prefs.setString(key, code));
+}
+
 /// Sends a song to the lyrics AI provider. Reads its providers now: the
 /// widget may be gone when the key arrives. A [retry] sends a song whose
 /// kept transcript is empty again; a [refresh] sends it again regardless.
-/// The [item]'s tags tell Whisper the language to hear.
+/// The language picked for the song, or else the [item]'s tags, tell
+/// Whisper the language to hear.
 LyricsTranscriber playerLyricsTranscriber(
   WidgetRef ref,
   MediaItem? item, {
@@ -53,6 +73,7 @@ LyricsTranscriber playerLyricsTranscriber(
   return (source, path) async {
     final key = await keyFuture;
     if (!lyricsAiReady(settings, key)) return '';
+    final picked = await transcriptLanguageOf(source);
     final client = newClient();
     try {
       return await LyricsTranscriptionClient(
@@ -63,7 +84,7 @@ LyricsTranscriber playerLyricsTranscriber(
         path,
         retryEmpty: retry,
         refresh: refresh,
-        language: language,
+        language: picked == null ? language : whisperLanguageCode(picked),
       );
     } finally {
       client.close();

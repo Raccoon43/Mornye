@@ -1298,6 +1298,14 @@
   "@lyricsTranscribeAction": {
     "description": "Button in the empty lyrics view - transcribe the song with the lyrics AI provider"
   },
+  "lyricsTranscriptLanguage": "AI lyrics language",
+  "@lyricsTranscriptLanguage": {
+    "description": "Lyrics menu item and sheet title - choose the language AI transcription listens for in this song"
+  },
+  "lyricsTranscriptLanguageAuto": "Detect automatically",
+  "@lyricsTranscriptLanguageAuto": {
+    "description": "First row of the AI lyrics language sheet - let the AI detect the song's language"
+  },
   "lyricsTranscribeFailed": "Couldn't transcribe this song",
   "@lyricsTranscribeFailed": {
     "description": "Snackbar when AI transcription fails or finds no words"

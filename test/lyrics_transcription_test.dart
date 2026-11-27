@@ -99,6 +99,35 @@ void main() {
     );
   });
 
+  test('sound labels over a song in another script are left out', () {
+    expect(
+      transcriptionSegmentsToLrc([
+        {'start': 1, 'text': 'Zither Harp'},
+        {'start': 3, 'text': '[Music]'},
+        {'start': 5, 'text': '敢问路在何方'},
+        {'start': 7, 'text': 'Piano 之歌'},
+        {'start': 9, 'text': 'Oh yeah'},
+      ]),
+      '[00:05.00]敢问路在何方\n[00:07.00]Piano 之歌\n[00:09.00]Oh yeah',
+    );
+    // An English song keeps them: they may be its words.
+    expect(
+      transcriptionSegmentsToLrc([
+        {'start': 1, 'text': 'Piano'},
+        {'start': 4, 'text': 'Play it again'},
+      ]),
+      '[00:01.00]Piano\n[00:04.00]Play it again',
+    );
+  });
+
+  test('picker languages map to the codes Whisper takes', () {
+    expect(whisperLanguageCode('zh-Hans'), 'zh');
+    expect(whisperLanguageCode('pt-BR'), 'pt');
+    expect(whisperLanguageCode('fil'), 'tl');
+    expect(whisperLanguageCode('nb'), 'no');
+    expect(whisperLanguageCode('ja'), 'ja');
+  });
+
   test('a song tagged in an East Asian script names its language', () {
     expect(whisperLanguageHint('Where Lies the Path Ahead (黑神话:悟空)'), 'zh');
     expect(whisperLanguageHint('夜に駆ける YOASOBI'), 'ja');

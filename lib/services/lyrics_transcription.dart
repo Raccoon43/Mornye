@@ -100,6 +100,35 @@ Object? _lineScript(String text) => _mostUsed(
   _letter.allMatches(text).map((m) => _script(m.group(0)!.runes.first)),
 );
 
+const _soundWords = {
+  'music', 'instrumental', 'intro', 'outro', 'piano', 'guitar', 'drum', //
+  'drums', 'bass', 'violin', 'cello', 'flute', 'harp', 'zither', 'erhu',
+  'guzheng', 'pipa', 'dizi', 'strings', 'synth', 'beat', 'applause',
+  'humming', 'whistling', 'silence',
+};
+
+/// Whether [text] only names a sound, like "Zither Harp" or "[Music]".
+/// Over a song in another script Whisper writes these as English captions.
+bool _soundLabel(String text) {
+  // A line with any other script in it is sung words, not a label.
+  if (text.runes.any((r) => r > 0x7f)) return false;
+  final words = text
+      .toLowerCase()
+      .split(RegExp(r'[^a-z]+'))
+      .where((w) => w.isNotEmpty && w != 'and')
+      .toList();
+  return words.isNotEmpty && words.length <= 4 && words.every(_soundWords.contains);
+}
+
+/// The code Whisper takes for a [lyricsTranslationLanguages] code: bare
+/// ISO-639-1, so `zh-Hans` sends `zh`.
+String whisperLanguageCode(String code) => switch (code.split('-').first) {
+  'fil' => 'tl',
+  'nb' => 'no',
+  'jv' => 'jw',
+  final base => base,
+};
+
 /// Whisper `verbose_json` segments as LRC lines. With Whisper's [words],
 /// each line carries enhanced LRC word times for karaoke highlighting.
 /// Segments Whisper likely made up are left out, as are lines written in
@@ -146,6 +175,7 @@ String transcriptionSegmentsToLrc(
     final start = segment['start'];
     if (start is! num) continue;
     if (script != null && script != songScript && script != 'latin') continue;
+    if (script == 'latin' && songScript != null && _soundLabel(text)) continue;
     // A word belongs to the last segment starting at or before it.
     final next = starts
         .where((s) => s > start)
@@ -380,9 +410,10 @@ class LyricsTranscriptionClient {
       : 'whisper-1';
 
   // v5: made-up subtitle credits (spaced "Am ara.org", Chinese 字幕) are dropped.
+  // v6: English sound labels ("Zither Harp") over a non-Latin song are dropped.
   Future<File> _cacheFile(String source) async {
     final name = sha1.convert(utf8.encode(source)).toString();
-    return File('${(await _cacheRoot()).path}/transcribed_lyrics_v5/$name.lrc');
+    return File('${(await _cacheRoot()).path}/transcribed_lyrics_v6/$name.lrc');
   }
 
   /// [retryEmpty] sends the song again when its kept transcript is empty;

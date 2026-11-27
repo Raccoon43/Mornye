@@ -403,6 +403,11 @@ class _LyricsOptionsButtonState extends ConsumerState<LyricsOptionsButton> {
       if (ai) ...[
         ('resync', l10n.lyricsResyncAction, Icons.sync_rounded),
         ('transcribe', l10n.lyricsTranscribeAction, Icons.auto_awesome),
+        (
+          'transcriptLanguage',
+          l10n.lyricsTranscriptLanguage,
+          Icons.record_voice_over_outlined,
+        ),
       ],
       if (canEdit) ('edit', l10n.lyricsEditTitle, Icons.edit_note),
     ];
@@ -484,7 +489,17 @@ class _LyricsOptionsButtonState extends ConsumerState<LyricsOptionsButton> {
     } finally {
       // The language sheet, the timing sheet and the editor keep controls
       // visible until they close.
-      if (action != 'translateInto' && action != 'edit' && action != 'timing') {
+      if (action != 'translateInto' &&
+          action != 'edit' &&
+          action != 'timing' &&
+          action != 'transcriptLanguage') {
+        _setOpen(false);
+      }
+    }
+    if (action == 'transcriptLanguage') {
+      try {
+        await _pickTranscriptLanguage();
+      } finally {
         _setOpen(false);
       }
     }
@@ -516,6 +531,25 @@ class _LyricsOptionsButtonState extends ConsumerState<LyricsOptionsButton> {
         _setOpen(false);
       }
     }
+  }
+
+  /// Picks the language AI transcription hears in this song, then sends it
+  /// again in that language.
+  Future<void> _pickTranscriptLanguage() async {
+    final source = widget.metadata.source;
+    if (source == null || !mounted) return;
+    final current = await transcriptLanguageOf(source) ?? '';
+    if (!mounted) return;
+    final picked = await showLyricsLanguagePicker(
+      context,
+      title: context.l10n.lyricsTranscriptLanguage,
+      subtitle: widget.metadata.item?.title,
+      selected: current,
+      appDefaultLabel: context.l10n.lyricsTranscriptLanguageAuto,
+    );
+    if (picked == null || picked == current || !mounted) return;
+    await setTranscriptLanguage(source, picked);
+    if (mounted) await _redoTranscription(retime: false);
   }
 
   Future<void> _redoTranscription({required bool retime}) async {
