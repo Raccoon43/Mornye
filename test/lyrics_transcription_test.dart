@@ -77,6 +77,26 @@ void main() {
     );
   });
 
+  test('lines in a script foreign to the song are left out', () {
+    expect(
+      transcriptionSegmentsToLrc([
+        {'start': 1, 'text': 'බවට්ට කියන්නේ අපි'},
+        {'start': 5, 'text': '敢问路在何方'},
+        {'start': 9, 'text': 'Oh yeah'},
+        {'start': 12, 'text': '路在脚下'},
+      ]),
+      '[00:05.00]敢问路在何方\n[00:09.00]Oh yeah\n[00:12.00]路在脚下',
+    );
+    expect(
+      transcriptionSegmentsToLrc([
+        {'start': 1, 'text': 'Hold me tight'},
+        {'start': 4, 'text': 'Never let go'},
+        {'start': 7, 'text': '사랑해'},
+      ]),
+      '[00:01.00]Hold me tight\n[00:04.00]Never let go\n[00:07.00]사랑해',
+    );
+  });
+
   test('Whisper words become karaoke times the parser reads', () {
     final lrc = transcriptionSegmentsToLrc(
       [

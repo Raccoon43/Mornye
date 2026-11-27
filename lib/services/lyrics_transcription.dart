@@ -55,9 +55,42 @@ bool _madeUp(Map<dynamic, dynamic> segment, String text) {
       _madeUpLine.hasMatch(text);
 }
 
+final _letter = RegExp(r'\p{L}', unicode: true);
+
+/// Writing system of a letter: Latin, CJK (Han, kana, Hangul) or else its
+/// 128-letter Unicode block, which keeps scripts like Sinhala apart.
+Object _script(int rune) {
+  if (rune < 0x370 || (rune >= 0x1E00 && rune < 0x1F00)) return 'latin';
+  if ((rune >= 0x1100 && rune < 0x1200) ||
+      (rune >= 0x3040 && rune < 0x3190) ||
+      (rune >= 0x3400 && rune < 0xA000) ||
+      (rune >= 0xAC00 && rune < 0xD7B0) ||
+      (rune >= 0x20000 && rune < 0x30000)) {
+    return 'cjk';
+  }
+  return rune >> 7;
+}
+
+/// The script most of [items] are written in, or null when there are none.
+Object? _mostUsed(Iterable<Object?> items) {
+  final counts = <Object, int>{};
+  for (final item in items.nonNulls) {
+    counts[item] = (counts[item] ?? 0) + 1;
+  }
+  return counts.isEmpty
+      ? null
+      : counts.entries.reduce((a, b) => b.value > a.value ? b : a).key;
+}
+
+Object? _lineScript(String text) => _mostUsed(
+  _letter.allMatches(text).map((m) => _script(m.group(0)!.runes.first)),
+);
+
 /// Whisper `verbose_json` segments as LRC lines. With Whisper's [words],
 /// each line carries enhanced LRC word times for karaoke highlighting.
-/// Segments Whisper likely made up are left out.
+/// Segments Whisper likely made up are left out, as are lines written in
+/// a script other than the song's own or Latin: over music Whisper guesses
+/// a wrong language for a part.
 String transcriptionSegmentsToLrc(
   List<dynamic> segments, {
   List<dynamic> words = const [],
@@ -78,12 +111,27 @@ String transcriptionSegmentsToLrc(
     for (final segment in segments)
       if (segment is Map && segment['start'] is num) segment['start'] as num,
   ];
+  final kept = [
+    for (final segment in segments)
+      if (segment is Map)
+        (
+          segment: segment,
+          text: segment['text']?.toString().trim() ?? '',
+          script: _lineScript(segment['text']?.toString() ?? ''),
+        ),
+  ].where((s) => s.text.isNotEmpty && !_madeUp(s.segment, s.text)).toList();
+  // One vote per line: a Han character holds a syllable, so counting letters
+  // would let a short line in an alphabet outweigh real Chinese lines. Latin
+  // lines always stay, so they don't vote: a mostly English K-pop song keeps
+  // its Korean.
+  final songScript = _mostUsed(
+    kept.map((s) => s.script).where((s) => s != 'latin'),
+  );
   final lines = <String>[];
-  for (final segment in segments) {
-    if (segment is! Map) continue;
-    final text = segment['text']?.toString().trim() ?? '';
+  for (final (:segment, :text, :script) in kept) {
     final start = segment['start'];
-    if (text.isEmpty || start is! num || _madeUp(segment, text)) continue;
+    if (start is! num) continue;
+    if (script != null && script != songScript && script != 'latin') continue;
     // A word belongs to the last segment starting at or before it.
     final next = starts
         .where((s) => s > start)
@@ -317,10 +365,11 @@ class LyricsTranscriptionClient {
       ? 'whisper-large-v3'
       : 'whisper-1';
 
-  // v2: transcripts kept before made-up lines were dropped are sent again.
+  // v3: transcripts kept before made-up and wrong-script lines were dropped
+  // are sent again.
   Future<File> _cacheFile(String source) async {
     final name = sha1.convert(utf8.encode(source)).toString();
-    return File('${(await _cacheRoot()).path}/transcribed_lyrics_v2/$name.lrc');
+    return File('${(await _cacheRoot()).path}/transcribed_lyrics_v3/$name.lrc');
   }
 
   /// [retryEmpty] sends the song again when its kept transcript is empty;
