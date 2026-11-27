@@ -66,6 +66,8 @@ void main() {
           'avg_logprob': -1.5,
         },
         {'start': 12, 'text': 'la la la la', 'compression_ratio': 3.1},
+        {'start': 13, 'text': '由 Am ara.org 社群提供的字幕'},
+        {'start': 14, 'text': '请不吝点赞 订阅 转发'},
         {
           'start': 15,
           'text': 'Loud chorus',

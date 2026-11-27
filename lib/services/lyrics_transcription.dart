@@ -35,8 +35,10 @@ String _lrcTime(num seconds) {
 // Lines Whisper makes up over music, learned from video subtitles.
 final _madeUpLine = RegExp(
   r'thanks? (you )?for watching|subscribe|like and share|'
-  r'subtitles? (by|made)|captions? by|transcri(bed|ption) by|amara\.org|'
-  r'see you (in the )?next (video|time)',
+  r'subtitles? (by|made)|captions? by|transcri(bed|ption) by|'
+  r'am\s*ara\s*\.\s*org|see you (in the )?next (video|time)|'
+  // Chinese subtitle credits and "like, subscribe" outros.
+  r'字幕|点赞|訂閱|订阅',
   caseSensitive: false,
 );
 
@@ -377,10 +379,10 @@ class LyricsTranscriptionClient {
       ? 'whisper-large-v3'
       : 'whisper-1';
 
-  // v4: transcripts heard in a wrongly guessed language are sent again.
+  // v5: made-up subtitle credits (spaced "Am ara.org", Chinese 字幕) are dropped.
   Future<File> _cacheFile(String source) async {
     final name = sha1.convert(utf8.encode(source)).toString();
-    return File('${(await _cacheRoot()).path}/transcribed_lyrics_v4/$name.lrc');
+    return File('${(await _cacheRoot()).path}/transcribed_lyrics_v5/$name.lrc');
   }
 
   /// [retryEmpty] sends the song again when its kept transcript is empty;
