@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,11 +35,16 @@ bool lyricsTranscriptionEnabled(AppSettings settings) =>
 /// Sends a song to the lyrics AI provider. Reads its providers now: the
 /// widget may be gone when the key arrives. A [retry] sends a song whose
 /// kept transcript is empty again; a [refresh] sends it again regardless.
+/// The [item]'s tags tell Whisper the language to hear.
 LyricsTranscriber playerLyricsTranscriber(
-  WidgetRef ref, {
+  WidgetRef ref,
+  MediaItem? item, {
   bool retry = false,
   bool refresh = false,
 }) {
+  final language = whisperLanguageHint(
+    [item?.title, item?.artist, item?.album].nonNulls.join(' '),
+  );
   final settings = ref.read(settingsProvider);
   final keyFuture = ref.read(
     lyricsAiKeyProvider(settings.lyricsAiProvider).future,
@@ -52,7 +58,13 @@ LyricsTranscriber playerLyricsTranscriber(
       return await LyricsTranscriptionClient(
         lyricsAiConfigFor(settings, apiKey: key),
         client: client,
-      ).transcribe(source, path, retryEmpty: retry, refresh: refresh);
+      ).transcribe(
+        source,
+        path,
+        retryEmpty: retry,
+        refresh: refresh,
+        language: language,
+      );
     } finally {
       client.close();
     }
@@ -136,7 +148,7 @@ class PlayerLyricsSection extends ConsumerWidget {
         !lyricsTranscriptionEnabled(settings)) {
       return;
     }
-    final transcribe = playerLyricsTranscriber(ref);
+    final transcribe = playerLyricsTranscriber(ref, metadata.item);
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => metadata.transcribeLyrics(transcribe),
     );
@@ -229,7 +241,7 @@ class PlayerLyricsSection extends ConsumerWidget {
             tonal: true,
             onPressed: () async {
               final found = await metadata.transcribeLyrics(
-                playerLyricsTranscriber(ref, retry: true),
+                playerLyricsTranscriber(ref, metadata.item, retry: true),
                 force: true,
               );
               if (!found && context.mounted) {

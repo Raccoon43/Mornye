@@ -97,6 +97,22 @@ void main() {
     );
   });
 
+  test('a song tagged in an East Asian script names its language', () {
+    expect(whisperLanguageHint('Where Lies the Path Ahead (黑神话:悟空)'), 'zh');
+    expect(whisperLanguageHint('夜に駆ける YOASOBI'), 'ja');
+    expect(whisperLanguageHint('봄날 BTS'), 'ko');
+    expect(whisperLanguageHint('Hello Adele'), isNull);
+  });
+
+  test('a language hint goes to Whisper', () async {
+    final mock = MockClient((request) async {
+      expect(request.body, contains('name="language"\r\n\r\nzh'));
+      return http.Response(jsonEncode({'segments': <Object>[]}), 200);
+    });
+    final client = clientFor(LyricsAiProvider.groq, mock);
+    expect(await client.transcribe('/l.flac', '/l.flac', language: 'zh'), '');
+  });
+
   test('Whisper words become karaoke times the parser reads', () {
     final lrc = transcriptionSegmentsToLrc(
       [

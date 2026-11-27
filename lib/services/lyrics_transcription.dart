@@ -57,6 +57,18 @@ bool _madeUp(Map<dynamic, dynamic> segment, String text) {
 
 final _letter = RegExp(r'\p{L}', unicode: true);
 
+/// The Whisper language a song's title, artist or album is written in, for
+/// scripts Whisper cannot mistake: kana, Hangul, then Han. Null otherwise.
+// shortcut: a kanji-only Japanese title reads as Chinese; upgrade with a
+// per-song language setting if that comes up.
+String? whisperLanguageHint(String text) {
+  bool has(RegExp script) => script.hasMatch(text);
+  if (has(RegExp(r'[぀-ヿ]'))) return 'ja';
+  if (has(RegExp(r'[ᄀ-ᇿ㄰-㆏가-힯]'))) return 'ko';
+  if (has(RegExp(r'[㐀-䶿一-鿿]'))) return 'zh';
+  return null;
+}
+
 /// Writing system of a letter: Latin, CJK (Han, kana, Hangul) or else its
 /// 128-letter Unicode block, which keeps scripts like Sinhala apart.
 Object _script(int rune) {
@@ -365,20 +377,21 @@ class LyricsTranscriptionClient {
       ? 'whisper-large-v3'
       : 'whisper-1';
 
-  // v3: transcripts kept before made-up and wrong-script lines were dropped
-  // are sent again.
+  // v4: transcripts heard in a wrongly guessed language are sent again.
   Future<File> _cacheFile(String source) async {
     final name = sha1.convert(utf8.encode(source)).toString();
-    return File('${(await _cacheRoot()).path}/transcribed_lyrics_v3/$name.lrc');
+    return File('${(await _cacheRoot()).path}/transcribed_lyrics_v4/$name.lrc');
   }
 
   /// [retryEmpty] sends the song again when its kept transcript is empty;
-  /// [refresh] sends it again whatever was kept.
+  /// [refresh] sends it again whatever was kept. [language] (ISO 639-1)
+  /// stops Whisper guessing it from an instrumental intro.
   Future<String> transcribe(
     String source,
     String path, {
     bool retryEmpty = false,
     bool refresh = false,
+    String? language,
   }) async {
     if (!lyricsTranscriptionSupported(config.provider)) {
       throw const LyricsTranscriptionException('provider takes no audio');
@@ -421,7 +434,7 @@ class LyricsTranscriptionClient {
       final bytes = await File(audio).readAsBytes();
       lrc = config.provider == LyricsAiProvider.gemini
           ? await _gemini(bytes)
-          : await _whisper(bytes);
+          : await _whisper(bytes, language);
     } finally {
       await FFmpegOutput.cleanup(audio);
     }
@@ -431,13 +444,14 @@ class LyricsTranscriptionClient {
     return lrc;
   }
 
-  Future<String> _whisper(List<int> bytes) async {
+  Future<String> _whisper(List<int> bytes, String? language) async {
     final request =
         http.MultipartRequest(
             'POST',
             Uri.parse('${config.openAiBase}/audio/transcriptions'),
           )
           ..fields['model'] = whisperModel
+          ..fields.addAll({'language': ?language})
           ..fields['response_format'] = 'verbose_json'
           ..fields['timestamp_granularities[]'] = 'segment'
           // The fields map holds one value per name; the second goes as a part.

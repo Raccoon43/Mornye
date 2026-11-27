@@ -520,7 +520,7 @@ class _LyricsOptionsButtonState extends ConsumerState<LyricsOptionsButton> {
 
   Future<void> _redoTranscription({required bool retime}) async {
     final ok = await widget.metadata.redoTranscription(
-      playerLyricsTranscriber(ref, refresh: true),
+      playerLyricsTranscriber(ref, widget.metadata.item, refresh: true),
       retime: retime,
     );
     if (ok || !mounted) return;
