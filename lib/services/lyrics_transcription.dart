@@ -109,15 +109,20 @@ const _soundWords = {
 
 /// Whether [text] only names a sound, like "Zither Harp" or "[Music]".
 /// Over a song in another script Whisper writes these as English captions.
+final _otherLetter = RegExp(r'[^\P{L}A-Za-z]', unicode: true);
+
 bool _soundLabel(String text) {
-  // A line with any other script in it is sung words, not a label.
-  if (text.runes.any((r) => r > 0x7f)) return false;
+  // A line with letters of another script is sung words, not a label;
+  // symbols such as ♪ or （） still pass.
+  if (_otherLetter.hasMatch(text)) return false;
   final words = text
       .toLowerCase()
       .split(RegExp(r'[^a-z]+'))
       .where((w) => w.isNotEmpty && w != 'and')
       .toList();
-  return words.isNotEmpty && words.length <= 4 && words.every(_soundWords.contains);
+  return words.isNotEmpty &&
+      words.length <= 4 &&
+      words.every(_soundWords.contains);
 }
 
 /// The code Whisper takes for a [lyricsTranslationLanguages] code: bare

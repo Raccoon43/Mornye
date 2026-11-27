@@ -20,6 +20,8 @@ import 'package:mornye/widgets/app_snack_bar.dart';
 import 'package:mornye/widgets/expressive_button.dart';
 import 'package:mornye/widgets/lyrics_editor_sheet.dart';
 import 'package:mornye/widgets/lyrics_options_activity.dart';
+import 'package:mornye/widgets/lyrics_options_button.dart'
+    show showLyricsLanguagePicker;
 import 'package:mornye/widgets/player_lyrics.dart';
 import 'package:mornye/widgets/lyrics_text_scale.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -274,6 +276,39 @@ class PlayerLyricsSection extends ConsumerWidget {
             },
             icon: const Icon(Icons.auto_awesome),
             child: Text(context.l10n.lyricsTranscribeAction),
+          ),
+          // The lyrics menu is hidden without lyrics, so the language is
+          // picked here when a transcript heard nothing.
+          ExpressiveButton(
+            key: const ValueKey('lyrics-transcript-language'),
+            text: true,
+            onPressed: () async {
+              final source = metadata.source;
+              if (source == null) return;
+              final current = await transcriptLanguageOf(source) ?? '';
+              if (!context.mounted) return;
+              final picked = await showLyricsLanguagePicker(
+                context,
+                title: context.l10n.lyricsTranscriptLanguage,
+                subtitle: metadata.item?.title,
+                selected: current,
+                appDefaultLabel: context.l10n.lyricsTranscriptLanguageAuto,
+              );
+              if (picked == null || picked == current) return;
+              await setTranscriptLanguage(source, picked);
+              final found = await metadata.transcribeLyrics(
+                playerLyricsTranscriber(ref, metadata.item, retry: true),
+                force: true,
+              );
+              if (!found && context.mounted) {
+                showAppSnackBar(
+                  context,
+                  content: Text(context.l10n.lyricsTranscribeFailed),
+                );
+              }
+            },
+            icon: const Icon(Icons.record_voice_over_outlined),
+            child: Text(context.l10n.lyricsTranscriptLanguage),
           ),
         ],
         if (canEditPlayerLyrics(metadata)) ...[
