@@ -54,6 +54,29 @@ void main() {
     );
   });
 
+  test('segments Whisper made up are left out', () {
+    expect(
+      transcriptionSegmentsToLrc([
+        {'start': 1, 'text': 'Real line', 'no_speech_prob': 0.1},
+        {'start': 5, 'text': 'Thank you for watching!'},
+        {
+          'start': 9,
+          'text': 'Silence',
+          'no_speech_prob': 0.9,
+          'avg_logprob': -1.5,
+        },
+        {'start': 12, 'text': 'la la la la', 'compression_ratio': 3.1},
+        {
+          'start': 15,
+          'text': 'Loud chorus',
+          'no_speech_prob': 0.9,
+          'avg_logprob': -0.2,
+        },
+      ]),
+      '[00:01.00]Real line\n[00:15.00]Loud chorus',
+    );
+  });
+
   test('Whisper words become karaoke times the parser reads', () {
     final lrc = transcriptionSegmentsToLrc(
       [
