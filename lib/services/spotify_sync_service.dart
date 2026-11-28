@@ -176,8 +176,15 @@ class SpotifySyncService {
   Future<String> _hash(String operation) async {
     var hashes = _hashes;
     if (hashes == null) {
+      // A phone UA gets the mobile player, whose main script lacks the
+      // library queries; the desktop player's script has them.
+      const headers = {
+        'user-agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+      };
       final page = await _client
-          .get(Uri.parse('$_web/'), headers: _browserHeaders)
+          .get(Uri.parse('$_web/'), headers: headers)
           .timeout(const Duration(seconds: 20));
       final bundle = spotifyPlayerBundleUrl(page.body);
       if (bundle == null) {
@@ -186,7 +193,7 @@ class SpotifySyncService {
         );
       }
       final script = await _client
-          .get(Uri.parse(bundle), headers: _browserHeaders)
+          .get(Uri.parse(bundle), headers: headers)
           .timeout(const Duration(seconds: 30));
       hashes = _hashes = spotifyQueryHashes(script.body);
     }
