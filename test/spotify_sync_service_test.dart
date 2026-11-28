@@ -70,6 +70,27 @@ void main() {
     );
   });
 
+  test('a 429 fails on the first request without retrying', () async {
+    var calls = 0;
+    final service = SpotifySyncService(
+      client: MockClient((_) async {
+        calls++;
+        return http.Response('{}', 429, headers: {'retry-after': '1'});
+      }),
+    )..connect('t');
+    await expectLater(
+      service.playlists(),
+      throwsA(
+        isA<SpotifySyncException>().having(
+          (e) => e.message,
+          'message',
+          contains('429'),
+        ),
+      ),
+    );
+    expect(calls, 1);
+  });
+
   test('parses both item shapes and skips local, episode and removed', () {
     final tracks = parseSpotifyPlaylistItems({
       'items': [

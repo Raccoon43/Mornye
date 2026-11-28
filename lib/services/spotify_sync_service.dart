@@ -126,36 +126,37 @@ class SpotifySyncService {
     if (token == null || !isConnected) {
       throw const SpotifySyncException('Connect to Spotify first.');
     }
-    for (var attempt = 0; attempt < 4; attempt++) {
-      final response = await _client
-          .get(Uri.parse(url), headers: {'Authorization': 'Bearer $token'})
-          .timeout(const Duration(seconds: 20));
-      // Test build: status and path only, never the token or headers.
-      debugPrint(
-        'SpotifySync ${response.statusCode} ${Uri.parse(url).path}'
-        '?${Uri.parse(url).query} (${response.body.length} bytes)',
-      );
-      switch (response.statusCode) {
-        case 200:
-          return jsonDecode(response.body) as Map<String, dynamic>;
-        case 401:
-          disconnect();
-          throw const SpotifySyncException(
-            'Spotify session expired. Connect again.',
-          );
-        case 429:
-          final wait = int.tryParse(response.headers['retry-after'] ?? '') ?? 2;
-          await Future<void>.delayed(Duration(seconds: wait.clamp(1, 30)));
-        default:
-          // Test build: name the endpoint and status so a failing run shows
-          // whether Spotify accepts the web player token here.
-          throw SpotifySyncException(
-            'Spotify returned ${response.statusCode} for '
-            '${Uri.parse(url).path}.',
-          );
-      }
+    final response = await _client
+        .get(Uri.parse(url), headers: {'Authorization': 'Bearer $token'})
+        .timeout(const Duration(seconds: 20));
+    // Test build: status and path only, never the token or headers.
+    debugPrint(
+      'SpotifySync ${response.statusCode} ${Uri.parse(url).path}'
+      '?${Uri.parse(url).query} (${response.body.length} bytes)',
+    );
+    switch (response.statusCode) {
+      case 200:
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      case 401:
+        disconnect();
+        throw const SpotifySyncException(
+          'Spotify session expired. Connect again.',
+        );
+      case 429:
+        // On device Spotify answered 429 to every web player token request,
+        // so waiting only kept the spinner up for minutes.
+        throw const SpotifySyncException(
+          'Spotify blocked this sign-in (429). Playlist sync does not work '
+          'with it.',
+        );
+      default:
+        // Test build: name the endpoint and status so a failing run shows
+        // whether Spotify accepts the web player token here.
+        throw SpotifySyncException(
+          'Spotify returned ${response.statusCode} for '
+          '${Uri.parse(url).path}.',
+        );
     }
-    throw const SpotifySyncException('Spotify is busy. Try again later.');
   }
 
   Future<List<Map<String, dynamic>>> _pages(String url) async {
