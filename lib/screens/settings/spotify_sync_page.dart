@@ -89,12 +89,12 @@ class _SpotifySyncPageState extends ConsumerState<SpotifySyncPage> {
 
   Future<void> _connect() async {
     if (!await _accepted() || !mounted) return;
-    final token = await pushPage<String>(
+    final session = await pushPage<SpotifyWebSession>(
       context,
       (_) => const SpotifyWebLoginPage(),
     );
-    if (token == null || !mounted) return;
-    spotifySyncService.connect(token);
+    if (session == null || !mounted) return;
+    spotifySyncService.connect(session);
     await _run(_load);
   }
 
@@ -181,7 +181,9 @@ class _SpotifySyncPageState extends ConsumerState<SpotifySyncPage> {
                     SettingsItem(
                       icon: Icons.queue_music_rounded,
                       title: p.name,
-                      subtitle: l10n.spotifySyncSongs(p.trackCount),
+                      subtitle: p.trackCount == null
+                          ? null
+                          : l10n.spotifySyncSongs(p.trackCount!),
                       trailing: _syncing.contains(p.id)
                           ? spinner
                           : const Icon(Icons.sync_rounded),
