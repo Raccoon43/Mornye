@@ -221,7 +221,14 @@ String? normalizeArtUri(String cover) {
 /// A collection or catalog [track] that plays the file at [path]. A
 /// `network://` cover stays the reference, its [PlayableMedia.coverReference],
 /// while a network [path] plays; a local file shows its own cover instead.
+/// Spotify track ids of queued tracks by playback source, for Canvas.
+/// shortcut: in memory only; Canvas needs the in-memory Spotify session too.
+final spotifyTrackIds = <String, String>{};
+
+final _spotifyTrackId = RegExp(r'^[0-9A-Za-z]{22}$');
+
 PlayableMedia playableFromTrack(Track track, String path) {
+  if (_spotifyTrackId.hasMatch(track.id)) spotifyTrackIds[path] = track.id;
   final cover = track.coverUrl ?? '';
   return PlayableMedia(
     id: path,

@@ -346,7 +346,7 @@ class _MiniPlayerBodyState extends ConsumerState<_MiniPlayerBody> {
         !MediaQuery.disableAnimationsOf(context)) {
       final artwork = ref
           .watch(
-            songMotionArtworkProvider((
+            playerSongMotionArtworkProvider((
               album: mediaItem.album ?? '',
               artist: mediaItem.artist ?? '',
               source: mediaItem.extras?['source']?.toString() ?? '',

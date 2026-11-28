@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -7,8 +8,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mornye/models/track.dart';
 
 class SpotifySyncException implements Exception {
-  const SpotifySyncException(this.message);
+  const SpotifySyncException(this.message, {this.statusCode});
   final String message;
+  final int? statusCode;
   @override
   String toString() => message;
 }
@@ -150,9 +152,12 @@ class SpotifySyncService {
       'https://api-partner.spotify.com/pathfinder/v2/query';
   static const _pageSize = 50;
   static const _maxPages = 100;
+  static const _maxCanvasBytes = 16 << 20;
   SpotifyWebSession? _session;
   Map<String, String>? _hashes;
   DateTime _expiresAt = DateTime.fromMillisecondsSinceEpoch(0);
+  final _canvases = <String, Future<String?>>{};
+  DateTime _canvasPausedUntil = DateTime.fromMillisecondsSinceEpoch(0);
 
   bool get isConnected =>
       _session != null && DateTime.now().isBefore(_expiresAt);
@@ -257,6 +262,7 @@ class SpotifySyncService {
       case 429:
         throw const SpotifySyncException(
           'Spotify is rate limiting this sign-in (429). Try again later.',
+          statusCode: 429,
         );
       default:
         throw SpotifySyncException(
@@ -316,6 +322,56 @@ class SpotifySyncService {
     }, (data) => _at(data, ['playlistV2', 'content'])))
       ...parseSpotifyPlaylistItems(page),
   ];
+
+  /// [trackId]'s looping Canvas video saved in [cache] as a `file://` URI,
+  /// or null when the track has none or Spotify is not connected. Never
+  /// throws: the player asks on every song change.
+  Future<String?> canvasFile(String trackId, Directory cache) async {
+    final file = File('${cache.path}/$trackId.mp4');
+    if (await file.exists()) return file.uri.toString();
+    if (!isConnected || DateTime.now().isBefore(_canvasPausedUntil)) {
+      return null;
+    }
+    try {
+      return await (_canvases[trackId] ??= _downloadCanvas(trackId, file));
+    } catch (error) {
+      _canvases.remove(trackId);
+      if (error is SpotifySyncException && error.statusCode == 429) {
+        _canvasPausedUntil = DateTime.now().add(const Duration(minutes: 10));
+      }
+      debugPrint('SpotifySync canvas skipped (${error.runtimeType})');
+      return null;
+    }
+  }
+
+  Future<String?> _downloadCanvas(String trackId, File file) async {
+    final data = await _query('canvas', {'trackUri': 'spotify:track:$trackId'});
+    if (_at(data, ['trackUnion', '__typename']) != 'Track') return null;
+    final canvas = _at(data, ['trackUnion', 'canvas']);
+    // Image and GIF canvases are not videos the player can loop.
+    final type = _at(canvas, ['type']);
+    if (type is! String || !type.startsWith('VIDEO')) return null;
+    final url = _at(canvas, ['url']);
+    final uri = url is String ? Uri.tryParse(url) : null;
+    if (uri == null || uri.scheme != 'https') return null;
+    // The CDN file is public: no Spotify headers go with it.
+    final response = await _client
+        .get(uri)
+        .timeout(const Duration(seconds: 20));
+    // shortcut: buffers the whole file before the size check; fine for Canvas
+    // clips of a few MB, stream it if they ever grow.
+    final bytes = response.bodyBytes;
+    if (response.statusCode != 200 ||
+        bytes.isEmpty ||
+        bytes.length > _maxCanvasBytes) {
+      return null;
+    }
+    await file.parent.create(recursive: true);
+    final part = File('${file.path}.part');
+    await part.writeAsBytes(bytes, flush: true);
+    await part.rename(file.path);
+    return file.uri.toString();
+  }
 
   /// Mirrors [playlist] into a library playlist and returns how many tracks
   /// were added. A deleted mirror is recreated with every track.

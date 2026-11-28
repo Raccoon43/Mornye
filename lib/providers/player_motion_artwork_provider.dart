@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/services/motion_artwork_folder.dart';
 import 'package:mornye/services/motion_artwork_store.dart';
+import 'package:mornye/services/playable_media.dart';
+import 'package:mornye/services/spotify_sync_service.dart';
 import 'package:mornye/utils/logger.dart';
 import 'package:mornye/utils/string_utils.dart';
 
@@ -46,6 +51,27 @@ final songMotionArtworkProvider = FutureProvider.autoDispose
         ),
       ).wait;
       return beside ?? saved;
+    });
+
+/// The mini and full player's artwork: the song's saved motion cover, else
+/// its Spotify Canvas while Spotify is connected. Both players watch this
+/// same provider so they share one decoder.
+final playerSongMotionArtworkProvider = FutureProvider.autoDispose
+    .family<MotionArtwork?, PlayerArtworkSong>((ref, song) async {
+      final saved = await ref.watch(songMotionArtworkProvider(song).future);
+      if (saved != null || !ref.mounted) return saved;
+      if (!ref.read(settingsProvider).motionArtworkEnabled) return null;
+      final id = spotifyTrackIds[song.source];
+      if (id == null || !spotifySyncService.isConnected) return null;
+      // Songs skipped past quickly never ask Spotify.
+      await Future<void>.delayed(const Duration(seconds: 1));
+      if (!ref.mounted) return null;
+      final temp = await getTemporaryDirectory();
+      final file = await spotifySyncService.canvasFile(
+        id,
+        Directory('${temp.path}/spotify_canvas'),
+      );
+      return file == null || !ref.mounted ? null : MotionArtwork(file);
     });
 
 /// Optional video is kept outside audio tags, after the metadata write succeeds.

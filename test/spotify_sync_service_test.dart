@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -10,6 +11,20 @@ const _bundle =
     'https://open.spotifycdn.com/cdn/build/web-player/web-player.05da289c.js';
 final _libHash = 'a' * 64;
 final _plHash = 'b' * 64;
+final _canvasHash = 'c' * 64;
+const _canvasMp4 = 'https://canvaz.scdn.co/upload/v.mp4';
+
+http.Response _canvasReply(String typename, String type) => http.Response(
+  jsonEncode({
+    'data': {
+      'trackUnion': {
+        '__typename': typename,
+        'canvas': {'type': type, 'url': _canvasMp4},
+      },
+    },
+  }),
+  200,
+);
 
 Map<String, dynamic> _track(String id, {String type = 'Track'}) => {
   'itemV2': {
@@ -61,9 +76,15 @@ SpotifySyncService _service(
         if (url == _bundle) {
           return http.Response(
             'x("libraryV3","query","$_libHash",!1),'
-            'y("fetchPlaylistContents","query","$_plHash",!1)',
+            'y("fetchPlaylistContents","query","$_plHash",!1),'
+            'z("canvas","query","$_canvasHash",!1)',
             200,
           );
+        }
+        // The public Canvas CDN gets no Spotify headers.
+        if (url == _canvasMp4) {
+          expect(request.headers['authorization'], isNull);
+          return http.Response.bytes([1, 2, 3], 200);
         }
         expect(
           request.headers['authorization'],
@@ -180,6 +201,50 @@ void main() {
       ),
     );
     expect(calls, 1);
+  });
+
+  group('canvasFile', () {
+    late Directory dir;
+    setUp(() => dir = Directory.systemTemp.createTempSync('canvas'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    test('saves a video Canvas and reuses the file', () async {
+      var calls = 0;
+      final service = _service((body) {
+        calls++;
+        expect(body['operationName'], 'canvas');
+        expect(body['variables'], {'trackUri': 'spotify:track:t1'});
+        return _canvasReply('Track', 'VIDEO_LOOPING_RANDOM');
+      });
+      final uri = await service.canvasFile('t1', dir);
+      expect(uri, File('${dir.path}/t1.mp4').uri.toString());
+      expect(File('${dir.path}/t1.mp4').readAsBytesSync(), [1, 2, 3]);
+      expect(await service.canvasFile('t1', dir), uri);
+      expect(calls, 1);
+    });
+
+    test('skips image canvases and non-tracks', () async {
+      final image = _service((_) => _canvasReply('Track', 'IMAGE'));
+      expect(await image.canvasFile('t1', dir), isNull);
+      final gone = _service((_) => _canvasReply('NotFound', 'VIDEO'));
+      expect(await gone.canvasFile('t2', dir), isNull);
+      expect(dir.listSync(), isEmpty);
+    });
+
+    test('asks nothing while disconnected and never throws', () async {
+      var calls = 0;
+      final service = _service((_) {
+        calls++;
+        return http.Response('{}', 429);
+      });
+      expect(await service.canvasFile('t1', dir), isNull);
+      // A 429 pauses Canvas lookups instead of retrying each song.
+      expect(await service.canvasFile('t2', dir), isNull);
+      expect(calls, 1);
+      service.disconnect();
+      expect(await service.canvasFile('t3', dir), isNull);
+      expect(calls, 1);
+    });
   });
 
   test('parses tracks and skips episodes and junk', () {
