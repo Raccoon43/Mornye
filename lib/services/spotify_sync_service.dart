@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mornye/models/track.dart';
@@ -105,6 +106,7 @@ class SpotifySyncService {
   final http.Client _client;
   static const _mapKey = 'spotify_sync_playlists';
   static const _api = 'https://api.spotify.com/v1';
+  static const _maxPages = 100;
   String? _token;
   DateTime _expiresAt = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -128,6 +130,11 @@ class SpotifySyncService {
       final response = await _client
           .get(Uri.parse(url), headers: {'Authorization': 'Bearer $token'})
           .timeout(const Duration(seconds: 20));
+      // Test build: status and path only, never the token or headers.
+      debugPrint(
+        'SpotifySync ${response.statusCode} ${Uri.parse(url).path}'
+        '?${Uri.parse(url).query} (${response.body.length} bytes)',
+      );
       switch (response.statusCode) {
         case 200:
           return jsonDecode(response.body) as Map<String, dynamic>;
@@ -153,8 +160,15 @@ class SpotifySyncService {
 
   Future<List<Map<String, dynamic>>> _pages(String url) async {
     final pages = <Map<String, dynamic>>[];
+    final seen = <String>{};
     String? next = url;
     while (next != null) {
+      // A repeated or endless `next` link would loop forever on the account.
+      if (!seen.add(next) || pages.length >= _maxPages) {
+        throw SpotifySyncException(
+          'Spotify kept sending more pages for ${Uri.parse(url).path}.',
+        );
+      }
       final page = await _get(next);
       pages.add(page);
       next = page['next'] as String?;

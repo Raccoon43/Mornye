@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/services/spotify_sync_service.dart';
 
@@ -29,6 +33,43 @@ Map<String, dynamic> _track(String id, {String type = 'track'}) => {
 };
 
 void main() {
+  test('playlists stops on an endless or repeated next link', () async {
+    var calls = 0;
+    final endless = SpotifySyncService(
+      client: MockClient((request) async {
+        calls++;
+        return http.Response(
+          jsonEncode({
+            'items': <Object>[],
+            'next': 'https://api.spotify.com/v1/me/playlists?offset=$calls',
+          }),
+          200,
+        );
+      }),
+    )..connect('t');
+    await expectLater(
+      endless.playlists(),
+      throwsA(isA<SpotifySyncException>()),
+    );
+    expect(calls, 100);
+
+    final repeated = SpotifySyncService(
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'items': <Object>[],
+            'next': 'https://api.spotify.com/v1/me/playlists?offset=50',
+          }),
+          200,
+        ),
+      ),
+    )..connect('t');
+    await expectLater(
+      repeated.playlists(),
+      throwsA(isA<SpotifySyncException>()),
+    );
+  });
+
   test('parses both item shapes and skips local, episode and removed', () {
     final tracks = parseSpotifyPlaylistItems({
       'items': [
