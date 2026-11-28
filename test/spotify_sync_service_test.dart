@@ -274,4 +274,37 @@ void main() {
     final result = unseenSpotifyTracks([t('1'), t('2'), t('2'), t('3')], {'1'});
     expect(result.map((t) => t.id), ['2', '3']);
   });
+
+  test('search match needs title and artist, ignores brackets', () {
+    Map<String, Object?> track(String id, String name, String artist) => {
+      'item': {
+        'data': {
+          '__typename': 'Track',
+          'uri': 'spotify:track:$id',
+          'name': name,
+          'artists': {
+            'items': [
+              {
+                'profile': {'name': artist},
+              },
+            ],
+          },
+        },
+      },
+    };
+    final data = {
+      'searchV2': {
+        'topResultsV2': {
+          'itemsV2': [
+            track('cover', 'Yellow', 'Someone Else'),
+            track('real', 'Yellow (Remastered)', 'Coldplay'),
+          ],
+        },
+      },
+    };
+    expect(spotifySearchTrackId(data, 'Yellow', 'Coldplay'), 'real');
+    expect(spotifySearchTrackId(data, 'YELLOW!', 'Coldplay, Guest'), 'real');
+    expect(spotifySearchTrackId(data, 'Fix You', 'Coldplay'), isNull);
+    expect(spotifySearchTrackId(data, 'Yellow', 'Nobody'), isNull);
+  });
 }

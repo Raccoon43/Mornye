@@ -350,6 +350,7 @@ class _MiniPlayerBodyState extends ConsumerState<_MiniPlayerBody> {
               album: mediaItem.album ?? '',
               artist: mediaItem.artist ?? '',
               source: mediaItem.extras?['source']?.toString() ?? '',
+              title: mediaItem.title,
             )),
           )
           .value;

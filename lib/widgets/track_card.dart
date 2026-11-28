@@ -109,7 +109,11 @@ class TrackCard extends StatelessWidget {
     this.isPlaying = false,
     this.leadingArtwork = false,
     this.queueSwipe,
+    this.titleBadge,
   });
+
+  /// A small mark after the title, such as the motion artwork badge.
+  final Widget? titleBadge;
 
   /// Track number, cover art, or anything else that identifies the row.
   /// `Text` without a colour takes the row's supporting colour, like
@@ -345,20 +349,27 @@ class TrackCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: current
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          // The accent as status: Mornye's only sign of
-                          // the current track.
-                          color: isCurrent && !material
-                              ? colorScheme.primary
-                              : contentColor,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: current
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                // The accent as status: Mornye's only sign of
+                                // the current track.
+                                color: isCurrent && !material
+                                    ? colorScheme.primary
+                                    : contentColor,
+                              ),
+                            ),
+                          ),
+                          ?titleBadge,
+                        ],
                       ),
                       if (subtitle != null) ...[
                         const SizedBox(height: 2),

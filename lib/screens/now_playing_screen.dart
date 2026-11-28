@@ -428,6 +428,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
               album: mediaItem.album ?? '',
               artist: mediaItem.artist ?? '',
               source: source,
+              title: mediaItem.title,
             )),
           )
         : null;

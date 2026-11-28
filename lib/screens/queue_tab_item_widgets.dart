@@ -1288,6 +1288,7 @@ extension _QueueTabItemWidgets on _QueueTabState {
           : () => _enterSelectionMode(item.id),
       leading: leading,
       title: item.trackName,
+      titleBadge: SongMotionBadge(item: item),
       subtitle: subtitle,
       trailing: trailing,
       queueSwipe: swipe,

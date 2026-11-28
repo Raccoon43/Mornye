@@ -79,6 +79,48 @@ Map<String, String> spotifyQueryHashes(String script) => {
     m.group(1)!: m.group(2)!,
 };
 
+String _matchKey(String s) => s
+    .toLowerCase()
+    .replaceAll(RegExp(r'\(.*?\)|\[.*?\]'), '')
+    .replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
+
+/// The first track in a `searchSuggestions` reply whose title and artist
+/// match [title] and [artist], ignoring case, punctuation and bracketed
+/// parts like "(Remastered)". Walks the whole reply, so a moved result list
+/// still matches.
+String? spotifySearchTrackId(Object? data, String title, String artist) {
+  final wantTitle = _matchKey(title);
+  final wantArtists = {
+    for (final a in artist.split(RegExp(r',|&| feat\.? | ft\.? ')))
+      if (_matchKey(a) case final key when key.isNotEmpty) key,
+  };
+  if (wantTitle.isEmpty || wantArtists.isEmpty) return null;
+  String? walk(Object? node) {
+    if (node is List) {
+      for (final child in node) {
+        if (walk(child) case final String id) return id;
+      }
+    } else if (node is Map) {
+      final uri = node['uri'];
+      if (uri is String &&
+          uri.startsWith('spotify:track:') &&
+          node['name'] is String &&
+          _matchKey(node['name'] as String) == wantTitle) {
+        final artists = _artistNames(
+          node['artists'] ?? node['firstArtist'],
+        ).split(', ').map(_matchKey);
+        if (artists.any(wantArtists.contains)) return _idFromUri(uri);
+      }
+      for (final child in node.values) {
+        if (walk(child) case final String id) return id;
+      }
+    }
+    return null;
+  }
+
+  return walk(data);
+}
+
 /// Playlists from one `libraryV3` page. Folders, Liked Songs and anything
 /// that is not a playlist are skipped.
 List<SpotifyPlaylist> parseSpotifyLibrary(Map<String, dynamic> page) => [
@@ -157,6 +199,7 @@ class SpotifySyncService {
   Map<String, String>? _hashes;
   DateTime _expiresAt = DateTime.fromMillisecondsSinceEpoch(0);
   final _canvases = <String, Future<String?>>{};
+  final _found = <String, Future<String?>>{};
   DateTime _canvasPausedUntil = DateTime.fromMillisecondsSinceEpoch(0);
 
   bool get isConnected =>
@@ -168,9 +211,17 @@ class SpotifySyncService {
     _session = session;
     _hashes = null;
     _expiresAt = DateTime.now().add(const Duration(minutes: 50));
+    connection.value++;
   }
 
-  void disconnect() => _session = null;
+  void disconnect() {
+    _session = null;
+    connection.value++;
+  }
+
+  /// Bumps on every connect and disconnect, so a Canvas lookup that ran
+  /// before the user connected tries again.
+  final connection = ValueNotifier<int>(0);
 
   Map<String, String> get _browserHeaders => {
     'origin': _web,
@@ -340,6 +391,34 @@ class SpotifySyncService {
         _canvasPausedUntil = DateTime.now().add(const Duration(minutes: 10));
       }
       debugPrint('SpotifySync canvas skipped (${error.runtimeType})');
+      return null;
+    }
+  }
+
+  /// Spotify's id for [title] by [artist], for songs downloaded without one.
+  /// Null when search finds no match or Spotify is not connected. Never
+  /// throws, and asks Spotify once per song.
+  Future<String?> findTrackId(String title, String artist) async {
+    if (!isConnected || DateTime.now().isBefore(_canvasPausedUntil)) {
+      return null;
+    }
+    final key = '$title\n$artist';
+    try {
+      return await (_found[key] ??= _query('searchSuggestions', {
+        'query': '$title $artist',
+        'limit': 10,
+        'numberOfTopResults': 10,
+        'offset': 0,
+        'includeAuthors': false,
+        'includeAlbumPreReleases': false,
+        'includeEpisodeContentRatingsV2': false,
+      }).then((data) => spotifySearchTrackId(data, title, artist)));
+    } catch (error) {
+      _found.remove(key);
+      if (error is SpotifySyncException && error.statusCode == 429) {
+        _canvasPausedUntil = DateTime.now().add(const Duration(minutes: 10));
+      }
+      debugPrint('SpotifySync search skipped (${error.runtimeType})');
       return null;
     }
   }

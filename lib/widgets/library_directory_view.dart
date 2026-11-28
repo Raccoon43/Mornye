@@ -49,6 +49,7 @@ import 'package:mornye/widgets/playlist_picker_sheet.dart';
 import 'package:mornye/widgets/queue_swipe.dart';
 import 'package:mornye/widgets/selection_bottom_bar.dart';
 import 'package:mornye/widgets/sliver_layout_info_builder.dart';
+import 'package:mornye/widgets/song_motion_badge.dart';
 import 'package:mornye/widgets/song_row_tap.dart';
 import 'package:mornye/widgets/track_card.dart';
 
@@ -858,6 +859,7 @@ class _LibraryDirectoryViewState extends ConsumerState<LibraryDirectoryView>
           leading: _SongArtwork(item: item, size: context.tokens.coverList),
           leadingArtwork: true,
           title: item.trackName,
+          titleBadge: SongMotionBadge(item: item),
           subtitle: Text(
             [item.artistName, ?quality].join(' · '),
             maxLines: 1,

@@ -227,6 +227,8 @@ final spotifyTrackIds = <String, String>{};
 
 final _spotifyTrackId = RegExp(r'^[0-9A-Za-z]{22}$');
 
+bool isSpotifyTrackId(String? id) => id != null && _spotifyTrackId.hasMatch(id);
+
 PlayableMedia playableFromTrack(Track track, String path) {
   if (_spotifyTrackId.hasMatch(track.id)) spotifyTrackIds[path] = track.id;
   final cover = track.coverUrl ?? '';
@@ -248,6 +250,10 @@ PlayableMedia playableFromTrack(Track track, String path) {
 }
 
 PlayableMedia playableFromHistory(DownloadHistoryItem item) {
+  final spotifyId = item.spotifyId;
+  if (spotifyId != null && _spotifyTrackId.hasMatch(spotifyId)) {
+    spotifyTrackIds[item.filePath] = spotifyId;
+  }
   return PlayableMedia(
     id: item.id,
     source: item.filePath,
